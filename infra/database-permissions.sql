@@ -1,0 +1,3 @@
+CREATE USER "756xbk2azb5ak-umid" FROM EXTERNAL PROVIDER;
+ALTER ROLE db_owner ADD MEMBER "756xbk2azb5ak-umid";
+GO

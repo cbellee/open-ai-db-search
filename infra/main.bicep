@@ -3,8 +3,15 @@ param publisherEmail string
 param publisherName string
 param entraIdObjectId string
 param addressPrefix string = '10.100.0.0/16'
-param repoUrl string = ''
+param repoUrl string
+param repoBranch string
 param sqlAdminLogin string
+param gitHubToken string
+param entraIdUsername string
+param isPrivate bool = false
+
+@secure()
+param sqlAdminPassword string
 
 param tags object = {
   environment: 'dev'
@@ -12,11 +19,12 @@ param tags object = {
 
 var prefix = uniqueString(resourceGroup().id)
 var storageName = 'stor${prefix}'
-var staticWebAppName = '${prefix}-static-web-app'
+var staticWebAppName = '${prefix}-swa'
 var apimPip = '${prefix}-apim-ip'
-var umidName = '${prefix}-umid'
+var funcUmidName = '${prefix}-umid'
+var swaUmidName = '${prefix}-swa-umid'
 var planName = '${prefix}-plan'
-var apimName = '${prefix}-apim'
+var apimName = 'apim-${prefix}'
 var funcName = '${prefix}-func'
 var sqlServerName = '${prefix}-sql-server'
 var storagePrivateEndpointName = '${prefix}-storage-pe'
@@ -25,8 +33,13 @@ var apimNsgName = '${prefix}-apim-nsg'
 var cosmosDbPrivateEndpointName = '${prefix}-cosmosdb-pe'
 var sampleSqlDatabaseName = 'sqldb-adventureworks'
 
-resource userManagedIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-07-31-preview' = {
-  name: umidName
+resource funcUserManagedIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-07-31-preview' = {
+  name: funcUmidName
+  location: location
+}
+
+resource swaUserManagedIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-07-31-preview' = {
+  name: swaUmidName
   location: location
 }
 
@@ -181,6 +194,12 @@ resource vnet 'Microsoft.Network/virtualNetworks@2024-01-01' = {
           addressPrefix: cidrSubnet(addressPrefix, 24, 4)
         }
       }
+      {
+        name: 'mgmtSubnet'
+        properties: {
+          addressPrefix: cidrSubnet(addressPrefix, 24, 5)
+        }
+      }
     ]
   }
 }
@@ -206,7 +225,7 @@ resource func 'Microsoft.Web/sites@2023-12-01' = {
   identity: {
     type: 'UserAssigned'
     userAssignedIdentities: {
-      '${userManagedIdentity.id}': {}
+      '${funcUserManagedIdentity.id}': {}
     }
   }
   properties: {
@@ -243,7 +262,7 @@ resource apimPublicIpAddress 'Microsoft.Network/publicIPAddresses@2024-01-01' = 
     publicIPAllocationMethod: 'Static'
     publicIPAddressVersion: 'IPv4'
     dnsSettings: {
-      domainNameLabel: apimName
+      domainNameLabel: 'apim${prefix}'
     }
   }
 }
@@ -252,6 +271,12 @@ resource apim 'Microsoft.ApiManagement/service@2023-09-01-preview' = {
   name: apimName
   location: location
   tags: tags
+  identity: {
+    type: 'UserAssigned'
+    userAssignedIdentities: {
+      '${funcUserManagedIdentity.id}': {}
+    }
+  }
   sku: {
     name: 'Standardv2'
     capacity: 1
@@ -322,15 +347,12 @@ resource sqlDatabase 'Microsoft.Sql/servers/databases@2021-11-01' = {
   name: sampleSqlDatabaseName
   parent: sqlServer
   location: location
-
   sku: {
     name: 'Basic'
     tier: 'Basic'
     capacity: 5
   }
-  tags: {
-    displayName: sampleSqlDatabaseName
-  }
+  tags: tags
   properties: {
     collation: 'SQL_Latin1_General_CP1_CI_AS'
     maxSizeBytes: 104857600
@@ -338,7 +360,7 @@ resource sqlDatabase 'Microsoft.Sql/servers/databases@2021-11-01' = {
   }
 }
 
-resource sqlPrivateEndpoint 'Microsoft.Network/privateEndpoints@2024-01-01' = {
+resource sqlPrivateEndpoint 'Microsoft.Network/privateEndpoints@2024-01-01' = if (isPrivate) {
   name: sqlPrivateEndpointName
   location: location
   tags: tags
@@ -383,7 +405,7 @@ resource storageContainer 'Microsoft.Storage/storageAccounts/blobServices/contai
   }
 }
 
-resource storagePrivateEndpoint 'Microsoft.Network/privateEndpoints@2024-01-01' = {
+resource storagePrivateEndpoint 'Microsoft.Network/privateEndpoints@2024-01-01' = if (isPrivate) {
   name: storagePrivateEndpointName
   location: location
   tags: tags
@@ -405,17 +427,48 @@ resource storagePrivateEndpoint 'Microsoft.Network/privateEndpoints@2024-01-01' 
   }
 }
 
-/* resource staticWebApp 'Microsoft.Web/staticSites@2023-12-01' = {
+resource swa 'Microsoft.Web/staticSites@2023-12-01' = {
   name: staticWebAppName
   location: location
-  tags: tags
-  properties: {
-    repositoryUrl: repoUrl
-    branch: 'main'
-    buildProperties: {}
-    publicNetworkAccess: 'Enabled'
+  identity: {
+    type: 'UserAssigned'
+    userAssignedIdentities: {
+      '${swaUserManagedIdentity.id}': {}
+    }
   }
-} */
+  tags: {
+    environment: 'dev'
+  }
+  sku: {
+    name: 'Standard'
+    tier: 'Standard'
+  }
+  properties: {
+    repositoryUrl: repoUrl //'https://github.com/cbellee/open-ai-db-search'
+    branch: repoBranch
+    stagingEnvironmentPolicy: 'Enabled'
+    allowConfigFileUpdates: true
+    provider: 'GitHub'
+    enterpriseGradeCdnStatus: 'Disabled'
+  }
+}
+
+resource swa_auth 'Microsoft.Web/staticSites/basicAuth@2023-12-01' = {
+  parent: swa
+  name: 'default'
+  properties: {
+    applicableEnvironmentsMode: 'SpecifiedEnvironments'
+  }
+}
+
+resource swa_backend 'Microsoft.Web/staticSites/linkedBackends@2023-12-01' = {
+  parent: swa
+  name: 'api-backend'
+  properties: {
+    backendResourceId: func.id
+    region: location
+  }
+}
 
 resource aiSearch 'Microsoft.Search/searchServices@2024-06-01-preview' = {
   name: '${prefix}-search'
@@ -449,7 +502,7 @@ resource cosmosDb 'Microsoft.DocumentDB/databaseAccounts@2024-05-15' = {
   }
 }
 
-resource cosmosDbPrivateEndpoint 'Microsoft.Network/privateEndpoints@2024-01-01' = {
+resource cosmosDbPrivateEndpoint 'Microsoft.Network/privateEndpoints@2024-01-01' = if (isPrivate) {
   name: cosmosDbPrivateEndpointName
   location: location
   tags: tags
@@ -471,7 +524,7 @@ resource cosmosDbPrivateEndpoint 'Microsoft.Network/privateEndpoints@2024-01-01'
   }
 }
 
-resource storagePrivateLinkServiceGroup 'Microsoft.Network/privateEndpoints/privateDnsZoneGroups@2024-01-01' = {
+resource storagePrivateLinkServiceGroup 'Microsoft.Network/privateEndpoints/privateDnsZoneGroups@2024-01-01' = if (isPrivate) {
   parent: storagePrivateEndpoint
   name: '${prefix}-storage-plsg'
   properties: {
@@ -486,7 +539,7 @@ resource storagePrivateLinkServiceGroup 'Microsoft.Network/privateEndpoints/priv
   }
 }
 
-resource sqlPrivateLinkServiceGroup 'Microsoft.Network/privateEndpoints/privateDnsZoneGroups@2024-01-01' = {
+resource sqlPrivateLinkServiceGroup 'Microsoft.Network/privateEndpoints/privateDnsZoneGroups@2024-01-01' = if (isPrivate) {
   parent: sqlPrivateEndpoint
   name: '${prefix}-sqlserver-plsg'
   properties: {
@@ -501,7 +554,7 @@ resource sqlPrivateLinkServiceGroup 'Microsoft.Network/privateEndpoints/privateD
   }
 }
 
-resource cosmosDbPrivateLinkServiceGroup 'Microsoft.Network/privateEndpoints/privateDnsZoneGroups@2024-01-01' = {
+resource cosmosDbPrivateLinkServiceGroup 'Microsoft.Network/privateEndpoints/privateDnsZoneGroups@2024-01-01' = if (isPrivate) {
   parent: cosmosDbPrivateEndpoint
   name: '${prefix}-cosmosdb-plsg'
   properties: {
@@ -516,25 +569,25 @@ resource cosmosDbPrivateLinkServiceGroup 'Microsoft.Network/privateEndpoints/pri
   }
 }
 
-resource storagePrivateDnsZone 'Microsoft.Network/privateDnsZones@2020-06-01' = {
+resource storagePrivateDnsZone 'Microsoft.Network/privateDnsZones@2020-06-01' =if (isPrivate) {
   name: 'privatelink.blob.core.windows.net'
   location: 'global'
   tags: tags
 }
 
-resource sqlServerPrivateDnsZone 'Microsoft.Network/privateDnsZones@2020-06-01' = {
+resource sqlServerPrivateDnsZone 'Microsoft.Network/privateDnsZones@2020-06-01' =if (isPrivate) {
   name: 'privatelink.database.windows.net'
   location: 'global'
   tags: tags
 }
 
-resource cosmosDbPrivateDnsZone 'Microsoft.Network/privateDnsZones@2020-06-01' = {
+resource cosmosDbPrivateDnsZone 'Microsoft.Network/privateDnsZones@2020-06-01' = if (isPrivate) {
   name: 'privatelink.documents.azure.com'
   location: 'global'
   tags: tags
 }
 
-resource storagePrivateDnsZoneLink 'Microsoft.Network/privateDnsZones/virtualNetworkLinks@2020-06-01' = {
+resource storagePrivateDnsZoneLink 'Microsoft.Network/privateDnsZones/virtualNetworkLinks@2020-06-01' = if (isPrivate) {
   parent: storagePrivateDnsZone
   location: 'global'
   name: '${prefix}-storage-vnet-link'
@@ -546,7 +599,7 @@ resource storagePrivateDnsZoneLink 'Microsoft.Network/privateDnsZones/virtualNet
   }
 }
 
-resource sqlServerPrivateDnsZoneLink 'Microsoft.Network/privateDnsZones/virtualNetworkLinks@2020-06-01' = {
+resource sqlServerPrivateDnsZoneLink 'Microsoft.Network/privateDnsZones/virtualNetworkLinks@2020-06-01' = if (isPrivate) {
   parent: sqlServerPrivateDnsZone
   name: '${prefix}-sqlserver-vnet-link'
   location: 'global'
@@ -558,7 +611,7 @@ resource sqlServerPrivateDnsZoneLink 'Microsoft.Network/privateDnsZones/virtualN
   }
 }
 
-resource cosmosDbPrivateDnsZoneLink 'Microsoft.Network/privateDnsZones/virtualNetworkLinks@2020-06-01' = {
+resource cosmosDbPrivateDnsZoneLink 'Microsoft.Network/privateDnsZones/virtualNetworkLinks@2020-06-01' = if (isPrivate) {
   parent: cosmosDbPrivateDnsZone
   name: '${prefix}-cosmosdb-vnet-link'
   location: 'global'
@@ -569,3 +622,12 @@ resource cosmosDbPrivateDnsZoneLink 'Microsoft.Network/privateDnsZones/virtualNe
     }
   }
 }
+
+output sqlServerName string = sqlServer.name
+output sqlDbName string = sqlDatabase.name
+output funcUmidName string = funcUserManagedIdentity.name
+output swaUmidName string = swaUserManagedIdentity.name
+output apimName string = apim.name
+output storageName string = storage.name
+output staticWebAppName string = swa.name
+output funcName string = func.name
