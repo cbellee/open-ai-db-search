@@ -7,11 +7,7 @@ param repoUrl string
 param repoBranch string
 param sqlAdminLogin string
 param gitHubToken string
-param entraIdUsername string
 param isPrivate bool = false
-
-@secure()
-param sqlAdminPassword string
 
 param tags object = {
   environment: 'dev'
@@ -450,6 +446,11 @@ resource swa 'Microsoft.Web/staticSites@2023-12-01' = {
     allowConfigFileUpdates: true
     provider: 'GitHub'
     enterpriseGradeCdnStatus: 'Disabled'
+    repositoryToken: gitHubToken
+    buildProperties: {
+      appLocation: '/spa'
+      apiLocation: '/api'
+    }
   }
 }
 
@@ -465,7 +466,7 @@ resource swa_backend 'Microsoft.Web/staticSites/linkedBackends@2023-12-01' = {
   parent: swa
   name: 'api-backend'
   properties: {
-    backendResourceId: func.id
+    backendResourceId:  apim.id //'${apim.properties.gatewayUrl}/${api.properties.path}'
     region: location
   }
 }
