@@ -448,6 +448,7 @@ resource swa 'Microsoft.Web/staticSites@2023-12-01' = {
     enterpriseGradeCdnStatus: 'Disabled'
     repositoryToken: gitHubToken
     buildProperties: {
+      outputLocation: '/dist'
       appLocation: '/spa'
       apiLocation: '/api'
     }
