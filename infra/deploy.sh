@@ -27,3 +27,8 @@ outputs=$(az deployment group show \
     --resource-group $resourceGroupName \
     --query 'properties.outputs' \
     --output json)
+
+npm create vite@latest app -- --template react -y
+cd ./app
+npm install
+npm run dev
