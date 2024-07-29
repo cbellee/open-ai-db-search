@@ -450,7 +450,7 @@ resource swa 'Microsoft.Web/staticSites@2023-12-01' = {
     buildProperties: {
       outputLocation: '/dist'
       appLocation: '/spa'
-      apiLocation: '/api'
+      //apiLocation: '/api'
     }
   }
 }
