@@ -1,8 +1,8 @@
 {
   "profiles": {
-    "api": {
+    "func": {
       "commandName": "Project",
-      "commandLineArgs": "--port 7006",
+      "commandLineArgs": "--port 7015",
       "launchBrowser": false
     }
   }

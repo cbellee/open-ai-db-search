@@ -25,7 +25,8 @@ az deployment group create \
     --parameters sqlAdminLogin=$sqlAdminLogin \
     --parameters repoUrl=$repoUrl \
     --parameters repoBranch=$repoBranch \
-    --parameters gitHubToken=$GITHUB_TOKEN
+    --parameters gitHubToken=$GITHUB_TOKEN \
+    --parameters isPrivate='true'
 
 # get deployment output
 SQL_SERVER_NAME=$(az deployment group show --resource-group $resourceGroupName --name main-deployment --query properties.outputs.sqlServerName.value --output tsv)
@@ -33,23 +34,27 @@ SQL_DB_NAME=$(az deployment group show --resource-group $resourceGroupName --nam
 FUNC_UMID_NAME=$(az deployment group show --resource-group $resourceGroupName --name main-deployment --query properties.outputs.funcUmidName.value --output tsv)
 FUNC_NAME=$(az deployment group show --resource-group $resourceGroupName --name main-deployment --query properties.outputs.funcName.value --output tsv)
 
-# sed "s/<UMID_NAME>/$FUNC_UMID_NAME/g" ./database-permissions.sql.template > ./database-permissions.sql
+sed "s/<UMID_NAME>/$FUNC_UMID_NAME/g" ./database-permissions.sql.template > ./database-permissions.sql
 # sqlcmd --server=$SQL_SERVER_NAME.database.windows.net -d=$SQL_DB_NAME --input-file=./database-permissions.sql --authentication-method=activeDirectoryDefault
 
-dotnet clean ../api/api.csproj --runtime linux-x64
-dotnet restore ../api/api.csproj --runtime linux-x64
-dotnet publish ../api/api.csproj -c Release --framework net8.0 --no-restore --runtime linux-x64 --no-self-contained -o ../publish
+dotnet clean ../func/func.csproj --runtime linux-x64
+dotnet restore ../func/func.csproj --runtime linux-x64
+dotnet publish ../func/func.csproj -c Release --framework net8.0 --no-restore --runtime linux-x64 -o ../func/publish
 
-cd ../publish
+cd ../func/publish
 zip -r ../publish.zip .
-cd ../api
+cd ../../infra
 
 az functionapp deployment source config-zip \
     --resource-group $resourceGroupName \
     --name $FUNC_NAME \
-    --src ../publish.zip
+    --src ../func/publish.zip
+
+ curl https://${FUNC_NAME}.azurewebsites.net/api/getproducts/Red | jq
 
 :'
+# scaffold react app
+
 npm create vite@latest app -- --template react -y
 cd ./app
 npm install

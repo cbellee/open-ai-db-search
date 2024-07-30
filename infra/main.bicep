@@ -7,7 +7,7 @@ param repoUrl string
 param repoBranch string
 param sqlAdminLogin string
 param gitHubToken string
-param isPrivate bool = false
+param isPrivate bool = true
 
 param tags object = {
   environment: 'dev'
@@ -28,6 +28,8 @@ var sqlPrivateEndpointName = '${prefix}-sql-pe'
 var apimNsgName = '${prefix}-apim-nsg'
 var cosmosDbPrivateEndpointName = '${prefix}-cosmosdb-pe'
 var sampleSqlDatabaseName = 'sqldb-adventureworks'
+var lawName = '${prefix}-law'
+var aiName = '${prefix}-ai'
 
 resource funcUserManagedIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-07-31-preview' = {
   name: funcUmidName
@@ -200,6 +202,27 @@ resource vnet 'Microsoft.Network/virtualNetworks@2024-01-01' = {
   }
 }
 
+resource law 'Microsoft.OperationalInsights/workspaces@2023-09-01' = {
+  name: lawName
+  location: location
+  properties: {
+    sku: {
+      name: 'PerGB2018'
+    }
+  }
+}
+
+resource appInsights 'Microsoft.Insights/components@2020-02-02' = {
+  name: aiName
+  location: location
+  tags: tags
+  kind: 'web'
+  properties: {
+    Application_Type: 'web'
+    Flow_Type: 'Redfield'
+  }
+}
+
 resource plan 'Microsoft.Web/serverfarms@2023-12-01' = {
   name: planName
   location: location
@@ -225,15 +248,54 @@ resource func 'Microsoft.Web/sites@2023-12-01' = {
     }
   }
   properties: {
+    vnetRouteAllEnabled: true
     serverFarmId: plan.id
     siteConfig: {
+      linuxFxVersion: 'DOTNET-ISOLATED|8.0'
       appSettings: [
         {
+          name: 'WEBSITE_RUN_FROM_PACKAGE'
+          value: '1'
+        }
+        {
+          name: 'Azure_CLIENT_ID'
+          value: funcUserManagedIdentity.properties.clientId
+        }
+        {
+          name: 'SQL_CXN_STRING'
+          value: 'Server=tcp:${sqlServer.name}${environment().suffixes.sqlServerHostname},1433;Initial Catalog=${sqlDatabase.name};User Id=${funcUserManagedIdentity.properties.clientId};Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;Authentication="Active Directory Managed Identity";'
+        }
+        {
+          name: 'APPINSIGHTS_INSTRUMENTATIONKEY'
+          value: appInsights.properties.InstrumentationKey
+        }
+        {
+          name: 'linuxFxVersion'
+          value: 'DOTNET-ISOLATED|8.0'
+        }
+        {
+          name: 'AzureWebJobsStorage'
+          value: 'DefaultEndpointsProtocol=https;AccountName=${storage.name};EndpointSuffix=${environment().suffixes.storage};AccountKey=${storage.listKeys().keys[0].value}'
+        }
+        {
+          name: 'WEBSITE_CONTENTAZUREFILECONNECTIONSTRING'
+          value: 'DefaultEndpointsProtocol=https;AccountName=${storage.name};EndpointSuffix=${environment().suffixes.storage};AccountKey=${storage.listKeys().keys[0].value}'
+        }
+        {
+          name: 'WEBSITE_CONTENTSHARE'
+          value: toLower(funcName)
+        }
+        {
           name: 'FUNCTIONS_WORKER_RUNTIME'
-          value: 'dotnet'
+          value: 'dotnet-isolated'
+        }
+        {
+          name: 'FUNCTIONS_EXTENSION_VERSION'
+          value: '~4'
         }
       ]
     }
+    reserved: true
   }
 }
 
@@ -467,7 +529,7 @@ resource swa_backend 'Microsoft.Web/staticSites/linkedBackends@2023-12-01' = {
   parent: swa
   name: 'api-backend'
   properties: {
-    backendResourceId:  apim.id //'${apim.properties.gatewayUrl}/${api.properties.path}'
+    backendResourceId: apim.id //'${apim.properties.gatewayUrl}/${api.properties.path}'
     region: location
   }
 }
@@ -571,13 +633,13 @@ resource cosmosDbPrivateLinkServiceGroup 'Microsoft.Network/privateEndpoints/pri
   }
 }
 
-resource storagePrivateDnsZone 'Microsoft.Network/privateDnsZones@2020-06-01' =if (isPrivate) {
+resource storagePrivateDnsZone 'Microsoft.Network/privateDnsZones@2020-06-01' = if (isPrivate) {
   name: 'privatelink.blob.core.windows.net'
   location: 'global'
   tags: tags
 }
 
-resource sqlServerPrivateDnsZone 'Microsoft.Network/privateDnsZones@2020-06-01' =if (isPrivate) {
+resource sqlServerPrivateDnsZone 'Microsoft.Network/privateDnsZones@2020-06-01' = if (isPrivate) {
   name: 'privatelink.database.windows.net'
   location: 'global'
   tags: tags
