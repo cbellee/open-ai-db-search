@@ -1,0 +1,616 @@
+{
+  "openapi": "3.0.1",
+  "info": {
+    "title": "backend",
+    "version": "1.0"
+  },
+  "paths": {
+    "/products": {
+      "get": {
+        "tags": [
+          "backend"
+        ],
+        "parameters": [
+          {
+            "name": "color",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Product"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Address": {
+        "type": "object",
+        "properties": {
+          "addressId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "addressLine1": {
+            "type": "string",
+            "nullable": true
+          },
+          "addressLine2": {
+            "type": "string",
+            "nullable": true
+          },
+          "city": {
+            "type": "string",
+            "nullable": true
+          },
+          "stateProvince": {
+            "type": "string",
+            "nullable": true
+          },
+          "countryRegion": {
+            "type": "string",
+            "nullable": true
+          },
+          "postalCode": {
+            "type": "string",
+            "nullable": true
+          },
+          "rowguid": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "modifiedDate": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "customerAddresses": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CustomerAddress"
+            },
+            "nullable": true
+          },
+          "salesOrderHeaderBillToAddresses": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SalesOrderHeader"
+            },
+            "nullable": true
+          },
+          "salesOrderHeaderShipToAddresses": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SalesOrderHeader"
+            },
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "Customer": {
+        "type": "object",
+        "properties": {
+          "customerId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "nameStyle": {
+            "type": "boolean"
+          },
+          "title": {
+            "type": "string",
+            "nullable": true
+          },
+          "firstName": {
+            "type": "string",
+            "nullable": true
+          },
+          "middleName": {
+            "type": "string",
+            "nullable": true
+          },
+          "lastName": {
+            "type": "string",
+            "nullable": true
+          },
+          "suffix": {
+            "type": "string",
+            "nullable": true
+          },
+          "companyName": {
+            "type": "string",
+            "nullable": true
+          },
+          "salesPerson": {
+            "type": "string",
+            "nullable": true
+          },
+          "emailAddress": {
+            "type": "string",
+            "nullable": true
+          },
+          "phone": {
+            "type": "string",
+            "nullable": true
+          },
+          "passwordHash": {
+            "type": "string",
+            "nullable": true
+          },
+          "passwordSalt": {
+            "type": "string",
+            "nullable": true
+          },
+          "rowguid": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "modifiedDate": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "customerAddresses": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CustomerAddress"
+            },
+            "nullable": true
+          },
+          "salesOrderHeaders": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SalesOrderHeader"
+            },
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "CustomerAddress": {
+        "type": "object",
+        "properties": {
+          "customerId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "addressId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "addressType": {
+            "type": "string",
+            "nullable": true
+          },
+          "rowguid": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "modifiedDate": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "address": {
+            "$ref": "#/components/schemas/Address"
+          },
+          "customer": {
+            "$ref": "#/components/schemas/Customer"
+          }
+        },
+        "additionalProperties": false
+      },
+      "Product": {
+        "type": "object",
+        "properties": {
+          "productId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "name": {
+            "type": "string",
+            "nullable": true
+          },
+          "productNumber": {
+            "type": "string",
+            "nullable": true
+          },
+          "color": {
+            "type": "string",
+            "nullable": true
+          },
+          "standardCost": {
+            "type": "number",
+            "format": "double"
+          },
+          "listPrice": {
+            "type": "number",
+            "format": "double"
+          },
+          "size": {
+            "type": "string",
+            "nullable": true
+          },
+          "weight": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "productCategoryId": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "productModelId": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "sellStartDate": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "sellEndDate": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "discontinuedDate": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "thumbNailPhoto": {
+            "type": "string",
+            "format": "byte",
+            "nullable": true
+          },
+          "thumbnailPhotoFileName": {
+            "type": "string",
+            "nullable": true
+          },
+          "rowguid": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "modifiedDate": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "productCategory": {
+            "$ref": "#/components/schemas/ProductCategory"
+          },
+          "productModel": {
+            "$ref": "#/components/schemas/ProductModel"
+          },
+          "salesOrderDetails": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SalesOrderDetail"
+            },
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "ProductCategory": {
+        "type": "object",
+        "properties": {
+          "productCategoryId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "parentProductCategoryId": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "name": {
+            "type": "string",
+            "nullable": true
+          },
+          "rowguid": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "modifiedDate": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "inverseParentProductCategory": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProductCategory"
+            },
+            "nullable": true
+          },
+          "parentProductCategory": {
+            "$ref": "#/components/schemas/ProductCategory"
+          },
+          "products": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Product"
+            },
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "ProductDescription": {
+        "type": "object",
+        "properties": {
+          "productDescriptionId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "description": {
+            "type": "string",
+            "nullable": true
+          },
+          "rowguid": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "modifiedDate": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "productModelProductDescriptions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProductModelProductDescription"
+            },
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "ProductModel": {
+        "type": "object",
+        "properties": {
+          "productModelId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "name": {
+            "type": "string",
+            "nullable": true
+          },
+          "catalogDescription": {
+            "type": "string",
+            "nullable": true
+          },
+          "rowguid": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "modifiedDate": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "productModelProductDescriptions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProductModelProductDescription"
+            },
+            "nullable": true
+          },
+          "products": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Product"
+            },
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "ProductModelProductDescription": {
+        "type": "object",
+        "properties": {
+          "productModelId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "productDescriptionId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "culture": {
+            "type": "string",
+            "nullable": true
+          },
+          "rowguid": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "modifiedDate": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "productDescription": {
+            "$ref": "#/components/schemas/ProductDescription"
+          },
+          "productModel": {
+            "$ref": "#/components/schemas/ProductModel"
+          }
+        },
+        "additionalProperties": false
+      },
+      "SalesOrderDetail": {
+        "type": "object",
+        "properties": {
+          "salesOrderId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "salesOrderDetailId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "orderQty": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "productId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "unitPrice": {
+            "type": "number",
+            "format": "double"
+          },
+          "unitPriceDiscount": {
+            "type": "number",
+            "format": "double"
+          },
+          "lineTotal": {
+            "type": "number",
+            "format": "double"
+          },
+          "rowguid": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "modifiedDate": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "product": {
+            "$ref": "#/components/schemas/Product"
+          },
+          "salesOrder": {
+            "$ref": "#/components/schemas/SalesOrderHeader"
+          }
+        },
+        "additionalProperties": false
+      },
+      "SalesOrderHeader": {
+        "type": "object",
+        "properties": {
+          "salesOrderId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "revisionNumber": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "orderDate": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "dueDate": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "shipDate": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "status": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "onlineOrderFlag": {
+            "type": "boolean"
+          },
+          "salesOrderNumber": {
+            "type": "string",
+            "nullable": true
+          },
+          "purchaseOrderNumber": {
+            "type": "string",
+            "nullable": true
+          },
+          "accountNumber": {
+            "type": "string",
+            "nullable": true
+          },
+          "customerId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "shipToAddressId": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "billToAddressId": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "shipMethod": {
+            "type": "string",
+            "nullable": true
+          },
+          "creditCardApprovalCode": {
+            "type": "string",
+            "nullable": true
+          },
+          "subTotal": {
+            "type": "number",
+            "format": "double"
+          },
+          "taxAmt": {
+            "type": "number",
+            "format": "double"
+          },
+          "freight": {
+            "type": "number",
+            "format": "double"
+          },
+          "totalDue": {
+            "type": "number",
+            "format": "double"
+          },
+          "comment": {
+            "type": "string",
+            "nullable": true
+          },
+          "rowguid": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "modifiedDate": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "billToAddress": {
+            "$ref": "#/components/schemas/Address"
+          },
+          "customer": {
+            "$ref": "#/components/schemas/Customer"
+          },
+          "salesOrderDetails": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SalesOrderDetail"
+            },
+            "nullable": true
+          },
+          "shipToAddress": {
+            "$ref": "#/components/schemas/Address"
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  }
+}

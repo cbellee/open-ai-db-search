@@ -1,0 +1,6 @@
+@ai_search_backend_HostAddress = http://localhost:5233
+
+GET {{ai_search_backend_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

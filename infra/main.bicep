@@ -1,4 +1,5 @@
-param location string = 'eastus'
+param location string = 'australiaeast'
+param staticWebAppLocation string = 'eastasia'
 param publisherEmail string
 param publisherName string
 param entraIdObjectId string
@@ -8,22 +9,26 @@ param repoBranch string
 param sqlAdminLogin string
 param gitHubToken string
 param isPrivate bool = true
+param imageName string
+param acrName string
+param aiSearchEndpoint string
+param aiSearchKey string
+param openAiConnection string
+param aiSearchIndex string
 
 param tags object = {
   environment: 'dev'
 }
 
 var prefix = uniqueString(resourceGroup().id)
-var storageName = 'stor${prefix}'
-var staticWebAppName = '${prefix}-swa'
 var apimPip = '${prefix}-apim-ip'
-var funcUmidName = '${prefix}-umid'
 var swaUmidName = '${prefix}-swa-umid'
-var planName = '${prefix}-plan'
+var containerAppUmidName = '${prefix}-container-app-umid'
+var containerAppName = '${prefix}-container-app'
 var apimName = 'apim-${prefix}'
-var funcName = '${prefix}-func'
+var apimUmidName = '${prefix}-apim-umid'
+var containerAppEnvironmentName = '${prefix}-container-app-env'
 var sqlServerName = '${prefix}-sql-server'
-var storagePrivateEndpointName = '${prefix}-storage-pe'
 var sqlPrivateEndpointName = '${prefix}-sql-pe'
 var apimNsgName = '${prefix}-apim-nsg'
 var cosmosDbPrivateEndpointName = '${prefix}-cosmosdb-pe'
@@ -31,14 +36,33 @@ var sampleSqlDatabaseName = 'sqldb-adventureworks'
 var lawName = '${prefix}-law'
 var aiName = '${prefix}-ai'
 
-resource funcUserManagedIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-07-31-preview' = {
-  name: funcUmidName
+resource apimUserManagedIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-07-31-preview' = {
+  name: apimUmidName
   location: location
 }
 
 resource swaUserManagedIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-07-31-preview' = {
   name: swaUmidName
   location: location
+}
+
+resource containerAppUserManagedIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-07-31-preview' = {
+  name: containerAppUmidName
+  location: location
+}
+
+resource acr 'Microsoft.ContainerRegistry/registries@2023-11-01-preview' existing = {
+  name: acrName
+}
+
+resource acrPullRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(acr.id, containerAppUserManagedIdentity.id, 'AcrPullRole')
+  scope: acr
+  properties: {
+    principalId: containerAppUserManagedIdentity.properties.principalId
+    roleDefinitionId: '/subscriptions/${subscription().subscriptionId}/providers/Microsoft.Authorization/roleDefinitions/7f951dda-4ed3-4680-a7ca-43fe172d538d'
+    principalType: 'ServicePrincipal'
+  }
 }
 
 resource apimNsg 'Microsoft.Network/networkSecurityGroups@2024-01-01' = {
@@ -110,19 +134,6 @@ resource apimNsg 'Microsoft.Network/networkSecurityGroups@2024-01-01' = {
           destinationAddressPrefix: 'Storage'
           access: 'Allow'
           priority: 140
-          direction: 'Outbound'
-        }
-      }
-      {
-        name: 'Deny_All_Internet_Outbound'
-        properties: {
-          protocol: '*'
-          sourcePortRange: '*'
-          destinationPortRange: '*'
-          sourceAddressPrefix: 'VirtualNetwork'
-          destinationAddressPrefix: 'Internet'
-          access: 'Deny'
-          priority: 1000
           direction: 'Outbound'
         }
       }
@@ -198,6 +209,12 @@ resource vnet 'Microsoft.Network/virtualNetworks@2024-01-01' = {
           addressPrefix: cidrSubnet(addressPrefix, 24, 5)
         }
       }
+      {
+        name: 'containerAppSubnet'
+        properties: {
+          addressPrefix: cidrSubnet(addressPrefix, 23, 6)
+        }
+      }
     ]
   }
 }
@@ -223,89 +240,128 @@ resource appInsights 'Microsoft.Insights/components@2020-02-02' = {
   }
 }
 
-resource plan 'Microsoft.Web/serverfarms@2023-12-01' = {
-  name: planName
+resource containerAppEnv 'Microsoft.App/managedEnvironments@2024-03-01' = {
+  name: containerAppEnvironmentName
   location: location
-  kind: 'linux,function'
-  sku: {
-    name: 'EP1'
-  }
   tags: tags
   properties: {
-    reserved: true
+    appLogsConfiguration: {
+      destination: 'log-analytics'
+      logAnalyticsConfiguration: {
+        customerId: law.properties.customerId
+        sharedKey: listKeys(law.id, law.apiVersion).primarySharedKey
+      }
+    }
+    vnetConfiguration: {
+      internal: false
+      infrastructureSubnetId: vnet.properties.subnets[6].id
+    }
   }
 }
 
-resource func 'Microsoft.Web/sites@2023-12-01' = {
-  name: funcName
+resource backendContainerApp 'Microsoft.App/containerApps@2024-03-01' = {
+  name: containerAppName
   location: location
-  tags: tags
-  kind: 'functionapp'
   identity: {
     type: 'UserAssigned'
     userAssignedIdentities: {
-      '${funcUserManagedIdentity.id}': {}
+      '${containerAppUserManagedIdentity.id}': {}
     }
   }
+  tags: tags
   properties: {
-    vnetRouteAllEnabled: true
-    serverFarmId: plan.id
-    siteConfig: {
-      linuxFxVersion: 'DOTNET-ISOLATED|8.0'
-      appSettings: [
+    configuration: {
+      secrets: [
         {
-          name: 'WEBSITE_RUN_FROM_PACKAGE'
-          value: '1'
+          name: 'defaultConnection'
+          value: 'Server=tcp:${sqlServer.name}${environment().suffixes.sqlServerHostname},1433;Initial Catalog=${sqlDatabase.name};Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;Authentication="Active Directory Default";'
         }
         {
-          name: 'Azure_CLIENT_ID'
-          value: funcUserManagedIdentity.properties.clientId
+          name: 'eodpoint'
+          value: aiSearchEndpoint
         }
         {
-          name: 'SQL_CXN_STRING'
-          value: 'Server=tcp:${sqlServer.name}${environment().suffixes.sqlServerHostname},1433;Initial Catalog=${sqlDatabase.name};User Id=${funcUserManagedIdentity.properties.clientId};Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;Authentication="Active Directory Managed Identity";'
+          name: 'key'
+          value: aiSearchKey
         }
         {
-          name: 'APPINSIGHTS_INSTRUMENTATIONKEY'
-          value: appInsights.properties.InstrumentationKey
+          name: 'indexname'
+          value: aiSearchIndex
         }
         {
-          name: 'linuxFxVersion'
-          value: 'DOTNET-ISOLATED|8.0'
-        }
-        {
-          name: 'AzureWebJobsStorage'
-          value: 'DefaultEndpointsProtocol=https;AccountName=${storage.name};EndpointSuffix=${environment().suffixes.storage};AccountKey=${storage.listKeys().keys[0].value}'
-        }
-        {
-          name: 'WEBSITE_CONTENTAZUREFILECONNECTIONSTRING'
-          value: 'DefaultEndpointsProtocol=https;AccountName=${storage.name};EndpointSuffix=${environment().suffixes.storage};AccountKey=${storage.listKeys().keys[0].value}'
-        }
-        {
-          name: 'WEBSITE_CONTENTSHARE'
-          value: toLower(funcName)
-        }
-        {
-          name: 'FUNCTIONS_WORKER_RUNTIME'
-          value: 'dotnet-isolated'
-        }
-        {
-          name: 'FUNCTIONS_EXTENSION_VERSION'
-          value: '~4'
+          name: 'openAiConnection'
+          value: openAiConnection
         }
       ]
+      registries: [
+        {
+          identity: containerAppUserManagedIdentity.id
+          server: acr.properties.loginServer
+        }
+      ]
+      activeRevisionsMode: 'Single'
+      ingress: {
+        targetPort: 8080
+        external: true
+        transport: 'auto'
+      }
     }
-    reserved: true
+    environmentId: containerAppEnv.id
+    template: {
+      containers: [
+        {
+          name: 'container'
+          image: imageName
+          resources: {
+            cpu: '0.25'
+            memory: '0.5Gi'
+          }
+          env: [
+            {
+              name: 'APPINSIGHTS_INSTRUMENTATIONKEY'
+              value: appInsights.properties.InstrumentationKey
+            }
+            {
+              name: 'AZURE_CLIENT_ID'
+              value: containerAppUserManagedIdentity.properties.clientId
+            }
+            {
+              name: 'ConnectionStrings__DefaultConnection'
+              secretRef: 'defaultConnection'
+              //value: 'Server=tcp:${sqlServer.name}${environment().suffixes.sqlServerHostname},1433;Initial Catalog=${sqlDatabase.name};Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;Authentication="Active Directory Default";'
+            }
+            {
+              name: 'SearchClient__endpoint'
+              secretRef: 'eodpoint'
+              //value: aiSearchEndpoint
+            }
+            {
+              name: 'SearchClient__credential__key'
+              secretRef: 'key'
+              //value: aiSearchKey
+            }
+            {
+              name: 'SearchClient__indexname'
+              secretRef: 'indexname'
+              //value: aiSearchIndex
+            }
+            {
+              name: 'ConnectionStrings__OpenAI'
+              secretRef: 'openAiConnection'
+              //value: openAiConnection
+            }
+          ]
+        }
+      ]
+      scale: {
+        maxReplicas: 3
+        minReplicas: 1
+      }
+    }
   }
-}
-
-resource funcVnetIntegration 'Microsoft.Web/sites/networkConfig@2023-12-01' = {
-  parent: func
-  name: 'virtualNetwork'
-  properties: {
-    subnetResourceId: vnet.properties.subnets[1].id
-    swiftSupported: true
-  }
+  dependsOn: [
+    acrPullRole
+  ]
 }
 
 resource apimPublicIpAddress 'Microsoft.Network/publicIPAddresses@2024-01-01' = {
@@ -332,7 +388,7 @@ resource apim 'Microsoft.ApiManagement/service@2023-09-01-preview' = {
   identity: {
     type: 'UserAssigned'
     userAssignedIdentities: {
-      '${funcUserManagedIdentity.id}': {}
+      '${apimUserManagedIdentity.id}': {}
     }
   }
   sku: {
@@ -368,7 +424,7 @@ resource apim 'Microsoft.ApiManagement/service@2023-09-01-preview' = {
   }
 }
 
-resource api 'Microsoft.ApiManagement/service/apis@2023-09-01-preview' = {
+/* resource api 'Microsoft.ApiManagement/service/apis@2023-09-01-preview' = {
   parent: apim
   name: 'api'
   properties: {
@@ -380,9 +436,9 @@ resource api 'Microsoft.ApiManagement/service/apis@2023-09-01-preview' = {
     protocols: [
       'https'
     ]
-    serviceUrl: 'https://${func.properties.defaultHostName}'
+    serviceUrl: 'https://${flexFuncApp.properties.defaultHostName}'
   }
-}
+} */
 
 resource sqlServer 'Microsoft.Sql/servers@2023-08-01-preview' = {
   name: sqlServerName
@@ -440,54 +496,9 @@ resource sqlPrivateEndpoint 'Microsoft.Network/privateEndpoints@2024-01-01' = if
   }
 }
 
-resource storage 'Microsoft.Storage/storageAccounts@2023-05-01' = {
-  name: storageName
-  location: location
-  tags: tags
-  sku: {
-    name: 'Standard_LRS'
-  }
-  kind: 'StorageV2'
-}
-
-resource storageDefault 'Microsoft.Storage/storageAccounts/blobServices@2023-05-01' = {
-  parent: storage
-  name: 'default'
-}
-
-resource storageContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-05-01' = {
-  parent: storageDefault
-  name: 'test'
-  properties: {
-    publicAccess: 'None'
-  }
-}
-
-resource storagePrivateEndpoint 'Microsoft.Network/privateEndpoints@2024-01-01' = if (isPrivate) {
-  name: storagePrivateEndpointName
-  location: location
-  tags: tags
-  properties: {
-    privateLinkServiceConnections: [
-      {
-        name: 'blob'
-        properties: {
-          privateLinkServiceId: storage.id
-          groupIds: [
-            'blob'
-          ]
-        }
-      }
-    ]
-    subnet: {
-      id: vnet.properties.subnets[4].id
-    }
-  }
-}
-
-resource swa 'Microsoft.Web/staticSites@2023-12-01' = {
+/* resource swa 'Microsoft.Web/staticSites@2023-12-01' = {
   name: staticWebAppName
-  location: location
+  location: staticWebAppLocation
   identity: {
     type: 'UserAssigned'
     userAssignedIdentities: {
@@ -532,7 +543,7 @@ resource swa_backend 'Microsoft.Web/staticSites/linkedBackends@2023-12-01' = {
     backendResourceId: apim.id //'${apim.properties.gatewayUrl}/${api.properties.path}'
     region: location
   }
-}
+} */
 
 resource aiSearch 'Microsoft.Search/searchServices@2024-06-01-preview' = {
   name: '${prefix}-search'
@@ -588,21 +599,6 @@ resource cosmosDbPrivateEndpoint 'Microsoft.Network/privateEndpoints@2024-01-01'
   }
 }
 
-resource storagePrivateLinkServiceGroup 'Microsoft.Network/privateEndpoints/privateDnsZoneGroups@2024-01-01' = if (isPrivate) {
-  parent: storagePrivateEndpoint
-  name: '${prefix}-storage-plsg'
-  properties: {
-    privateDnsZoneConfigs: [
-      {
-        name: 'blob'
-        properties: {
-          privateDnsZoneId: storagePrivateDnsZone.id
-        }
-      }
-    ]
-  }
-}
-
 resource sqlPrivateLinkServiceGroup 'Microsoft.Network/privateEndpoints/privateDnsZoneGroups@2024-01-01' = if (isPrivate) {
   parent: sqlPrivateEndpoint
   name: '${prefix}-sqlserver-plsg'
@@ -633,12 +629,6 @@ resource cosmosDbPrivateLinkServiceGroup 'Microsoft.Network/privateEndpoints/pri
   }
 }
 
-resource storagePrivateDnsZone 'Microsoft.Network/privateDnsZones@2020-06-01' = if (isPrivate) {
-  name: 'privatelink.blob.core.windows.net'
-  location: 'global'
-  tags: tags
-}
-
 resource sqlServerPrivateDnsZone 'Microsoft.Network/privateDnsZones@2020-06-01' = if (isPrivate) {
   name: 'privatelink.database.windows.net'
   location: 'global'
@@ -649,18 +639,6 @@ resource cosmosDbPrivateDnsZone 'Microsoft.Network/privateDnsZones@2020-06-01' =
   name: 'privatelink.documents.azure.com'
   location: 'global'
   tags: tags
-}
-
-resource storagePrivateDnsZoneLink 'Microsoft.Network/privateDnsZones/virtualNetworkLinks@2020-06-01' = if (isPrivate) {
-  parent: storagePrivateDnsZone
-  location: 'global'
-  name: '${prefix}-storage-vnet-link'
-  properties: {
-    registrationEnabled: false
-    virtualNetwork: {
-      id: vnet.id
-    }
-  }
 }
 
 resource sqlServerPrivateDnsZoneLink 'Microsoft.Network/privateDnsZones/virtualNetworkLinks@2020-06-01' = if (isPrivate) {
@@ -689,9 +667,8 @@ resource cosmosDbPrivateDnsZoneLink 'Microsoft.Network/privateDnsZones/virtualNe
 
 output sqlServerName string = sqlServer.name
 output sqlDbName string = sqlDatabase.name
-output funcUmidName string = funcUserManagedIdentity.name
 output swaUmidName string = swaUserManagedIdentity.name
 output apimName string = apim.name
-output storageName string = storage.name
-output staticWebAppName string = swa.name
-output funcName string = func.name
+output containerAppUmidName string = containerAppUserManagedIdentity.name
+output containerAppName string = backendContainerApp.name
+output containerAppFqdn string = backendContainerApp.properties.configuration.ingress.fqdn
