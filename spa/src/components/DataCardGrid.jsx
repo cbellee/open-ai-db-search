@@ -3,7 +3,7 @@ import Box from '@mui/material/Box';
 import Grid from '@mui/material/Grid';
 import ShowMoreText from "react-show-more-text";
 import { Card, CardContent, Typography, CardActions, CardHeader, CardMedia, Avatar, IconButton, Collapse, ListItem, List } from '@mui/material';
-import { Favorite, Share, ColorLens } from '@mui/icons-material'
+import { Favorite, Share } from '@mui/icons-material'
 
 var imageData = {
   images: [
@@ -31,15 +31,12 @@ function DataCard({ item, index }) {
   }
 
   return (
-    <div class="flex flex-row">
-      <Card class="shadow m-0 max-w-96 min-w-60 bg-white ">
+      <Card class="m-0 max-w-96 min-w-60 bg-white rounded shadow-md">
         <CardHeader
-          /*   avatar={
-              <ColorLens fontSize="large" sx={{ color: item.color }} aria-label="recipe">
-              </ColorLens>
-            } */
-          sx={{ minHeight: 120 }}
+          class="min-h-32 p-5 text-white bg-slate-800 rounded-t"
           title={item.name}
+          titleTypographyProps={{ variant: 'h5'}}
+          subheaderTypographyProps={{ color: 'antiquewhite' }} 
           subheader={item.brand}
         />
         <CardMedia
@@ -49,13 +46,11 @@ function DataCard({ item, index }) {
           sx={{ padding: "0 0 0 0", minHeight: 210, objectFit: "fill" }}
         />
         <CardContent>
-          <Typography variant="body3" color="text.secondary" class="text-pretty">
+          <Typography variant="body3" color="text.secondary" class="text-pretty font-light">
             <ShowMoreText
-              /* Default options */
-              lines={8}
+              lines={4}
               more="Read more"
               less="Read less"
-
               onClick={executeOnClick}
               expanded={false}
               truncatedEndingComponent={"... "}
@@ -64,14 +59,14 @@ function DataCard({ item, index }) {
             </ShowMoreText>
           </Typography>
         </CardContent>
-        <CardContent>
+        <CardContent class="pl-4 font-light">
           <List>
-            <ListItem>
+          <ListItem class="p-0 m-0">
               <Typography variant="body2" color="text.secondary">
                 Price: ${item.price}
               </Typography>
             </ListItem>
-            <ListItem sx={{ padding: 0, margin: 0 }}>
+            <ListItem class="p-0 m-0">
               <Typography variant="body2" color="text.secondary">
                 Type: {item.type}
               </Typography>
@@ -79,15 +74,14 @@ function DataCard({ item, index }) {
           </List>
         </CardContent>
         <CardActions disableSpacing>
-          <IconButton aria-label="add to favorites">
+          <IconButton aria-label="add to favorites" color='error'>
             <Favorite />
           </IconButton>
-          <IconButton aria-label="share">
+          <IconButton aria-label="share" color='info'>
             <Share />
           </IconButton>
         </CardActions>
       </Card>
-    </div>
   )
 }
 
