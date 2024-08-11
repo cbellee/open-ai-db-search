@@ -5,7 +5,7 @@ export default function DataTable({ data }) {
   const rows = data.map(item => Object.values(item));
 
   return (
-    <table>
+    <table class="">
       <thead>
         <tr>
           {headers.map(header => <th key={header}>{header}</th>)}

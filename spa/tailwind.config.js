@@ -6,6 +6,9 @@ export default {
   theme: {
     extend: {},
   },
+  define: {
+    'process.env': {}
+  },
   plugins: [],
 }
 

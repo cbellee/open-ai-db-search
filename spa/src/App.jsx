@@ -8,10 +8,15 @@ import DataCardGrid from './components/DataCardGrid.jsx';
 function App() {
   const [searchResult, setSearchResult] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
-  let url = `https://tw4alpb6lhcvg-container-app.happyflower-da7032d6.eastasia.azurecontainerapps.io/products?query=${searchQuery}`
+  const [topResults, setTopResults] = useState('10');
+  let url = `${import.meta.env.VITE_API_URI}?query=${searchQuery}&top=${topResults}`
 
-  const childToParent = (childData) => {
+  const childToParentSearchQuery = (childData) => {
     setSearchQuery(childData);
+  }
+
+  const childToParentTopResults = (childData) => {
+    setTopResults(childData);
   }
 
   useEffect(() => {
@@ -26,8 +31,9 @@ function App() {
         const res = await fetch(url, { method: "GET", headers: { Accept: 'application/json', 'Content-Type': 'application/json' } });
         const jsonData = await res.json();
         if (res.status === 200) {
-          console.log("got data: " + JSON.stringify(jsonData))
+          // console.log("data: " + JSON.stringify(jsonData))
           setSearchResult(jsonData);
+          setSearchQuery("");
         } else {
           console.log("an error occurred")
           setMessage("An error occurred")
@@ -36,22 +42,27 @@ function App() {
         console.log("error: " + err);
       }
     }
+    setSearchQuery("");
   };
 
   return (
-    <div class="main">
-      <NavBar>
-        <Search childToParent={childToParent} />
-      </NavBar>
-      <div class="h-screen content-center p-5 flex bg-slate-300 justify-center justify-items-center">
-        <div class="flex-row pt-5">
-          {searchResult.length > 0 &&
-            <DataCardGrid data={searchResult} class="flex justify-center" />
-          }
+    <body flex flex-col min-h-screen>
+      <main class="bg-slate-700 flex-grow">
+        <div class="flex justify-center max-w-screen-2xl flex-col mx-auto">
+          <NavBar>
+            <Search childToParentSearchQuery={childToParentSearchQuery} childToParentTopResults={childToParentTopResults} />
+          </NavBar>
+          <div class="content-center min-h-screen p-5 flex bg-slate-200 justify-center justify-items-center">
+            <div class="flex-row pt-5">
+              {searchResult.length > 0 &&
+                <DataCardGrid data={searchResult} class="flex justify-center" />
+              }
+            </div>
+          </div>
+          <Footer />
         </div>
-      </div>
-      <Footer />
-    </div>
+      </main>
+    </body>
   )
 }
 

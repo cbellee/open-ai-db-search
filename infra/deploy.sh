@@ -7,7 +7,7 @@ publisherName=$(echo $entraIdUsername | cut -d "@" -f 1)
 sqlAdminLogin='sqldbadmin'
 repoUrl='https://github.com/cbellee/open-ai-db-search'
 repoBranch='main'
-version=v0.0.2
+version=v0.0.10
 
 source ./.env
 
@@ -25,10 +25,11 @@ az deployment group create \
 ACR_NAME=$(az deployment group show --resource-group $resourceGroupName --name acr-deployment --query properties.outputs.acrName.value --output tsv)
 IMAGE_NAME=$ACR_NAME.azurecr.io/ai-search-api:$version
 
-cd ../ai-search-backend
+cd ../api
 az acr login -n $ACR_NAME
 docker build -t $IMAGE_NAME .
 docker push $IMAGE_NAME
+cd ../infra
 
 # deploy resources
 az deployment group create \

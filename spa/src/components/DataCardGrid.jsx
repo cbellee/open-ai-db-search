@@ -8,19 +8,22 @@ import { Favorite, Share } from '@mui/icons-material'
 var imageData = {
   images: [
     {
-      "image": "watch-1.jpg"
+      "image": "images/watch-1.jpg"
     },
     {
-      "image": "watch-2.jpg"
+      "image": "images/watch-2.jpg"
     },
     {
-      "image": "outdoor-1.jpg"
+      "image": "images/outdoor-1.jpg"
     },
     {
-      "image": "rope-1.jpg"
+      "image": "images/rope-1.jpg"
     },
     {
-      "image": "headphones-1.jpg"
+      "image": "images/headphones-1.jpg"
+    },
+    {
+      "image": "images/climbing-1.jpg"
     }
   ]
 }
@@ -29,6 +32,11 @@ function DataCard({ item, index }) {
   const executeOnClick = (isExpanded) => {
     console.log(isExpanded);
   }
+
+  function randomNumberInRange(min, max) {
+    return Math.floor(Math.random()
+        * (max - min + 1)) + min;
+};
 
   return (
       <Card class="m-0 max-w-96 min-w-60 bg-white rounded shadow-md">
@@ -41,9 +49,10 @@ function DataCard({ item, index }) {
         />
         <CardMedia
           component="img"
-          image={imageData.images[index].image}
+          image={imageData.images[randomNumberInRange(0, 5)].image}
           alt="Product Image"
-          sx={{ padding: "0 0 0 0", minHeight: 210, objectFit: "fill" }}
+          class="object-scale-down"
+          sx={{ padding: "0 0 0 0", margin: "0 0 0 0", minHeight: 0, objectFit: "fill" }}
         />
         <CardContent>
           <Typography variant="body3" color="text.secondary" class="text-pretty font-light">

@@ -273,11 +273,7 @@ resource backendContainerApp 'Microsoft.App/containerApps@2024-03-01' = {
     configuration: {
       secrets: [
         {
-          name: 'defaultConnection'
-          value: 'Server=tcp:${sqlServer.name}${environment().suffixes.sqlServerHostname},1433;Initial Catalog=${sqlDatabase.name};Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;Authentication="Active Directory Default";'
-        }
-        {
-          name: 'eodpoint'
+          name: 'endpoint'
           value: aiSearchEndpoint
         }
         {
@@ -289,7 +285,7 @@ resource backendContainerApp 'Microsoft.App/containerApps@2024-03-01' = {
           value: aiSearchIndex
         }
         {
-          name: 'openAiConnection'
+          name: 'openaiconnection'
           value: openAiConnection
         }
       ]
@@ -301,6 +297,22 @@ resource backendContainerApp 'Microsoft.App/containerApps@2024-03-01' = {
       ]
       activeRevisionsMode: 'Single'
       ingress: {
+        corsPolicy: {
+          allowedOrigins: [
+            '*'
+          ]
+          allowCredentials: false
+          allowedHeaders: [
+            '*'
+          ]
+          allowedMethods: [
+            'GET'
+            'POST'
+            'PUT'
+            'DELETE'
+            'OPTIONS'
+          ]
+        }
         targetPort: 8080
         external: true
         transport: 'auto'
@@ -326,13 +338,8 @@ resource backendContainerApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: containerAppUserManagedIdentity.properties.clientId
             }
             {
-              name: 'ConnectionStrings__DefaultConnection'
-              secretRef: 'defaultConnection'
-              //value: 'Server=tcp:${sqlServer.name}${environment().suffixes.sqlServerHostname},1433;Initial Catalog=${sqlDatabase.name};Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;Authentication="Active Directory Default";'
-            }
-            {
               name: 'SearchClient__endpoint'
-              secretRef: 'eodpoint'
+              secretRef: 'endpoint'
               //value: aiSearchEndpoint
             }
             {
@@ -347,7 +354,7 @@ resource backendContainerApp 'Microsoft.App/containerApps@2024-03-01' = {
             }
             {
               name: 'ConnectionStrings__OpenAI'
-              secretRef: 'openAiConnection'
+              secretRef: 'openaiconnection'
               //value: openAiConnection
             }
           ]
