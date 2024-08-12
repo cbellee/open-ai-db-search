@@ -6,7 +6,7 @@ export default function NavBar({children}) {
             <div class="max-w-screen-xl flex flex-wrap items-center justify-between mx-auto p-4">
                 <a href="https://azure.microsoft.com/en-us/products/ai-services/ai-search" class="flex items-center space-x-3 rtl:space-x-reverse">
                     <img src="logo.png" class="h-8" alt="AI Search Logo" />
-                    <span class="self-center text-2xl font-semibold whitespace-nowrap dark:text-white">AI Search Store</span>
+                    <span class="self-center text-2xl font-semibold whitespace-nowrap dark:text-white">Cosmos Store</span>
                 </a>
                 <div class="flex md:order-2">
                     <div class="relative hidden md:block">
@@ -14,7 +14,7 @@ export default function NavBar({children}) {
                         {children}
                     </div>
                 </div>
-                <div className="items-center justify-between hidden w-full md:flex md:w-auto md:order-1" id="navbar-links">
+                <div class="items-center justify-between hidden w-full md:flex md:w-auto md:order-1" id="navbar-links">
                     <ul class="flex flex-col p-4 md:p-0 mt-4 font-medium border border-slate-100 rounded-lg bg-slate-50 md:space-x-8 rtl:space-x-reverse md:flex-row md:mt-0 md:border-0 md:bg-white dark:bg-slate-800 md:dark:bg-slate-900 dark:border-slate-700">
                         <li>
                             <a href="#" class="block py-2 px-3 text-white bg-blue-700 rounded md:bg-transparent md:text-blue-700 md:p-0 md:dark:text-blue-500" aria-current="page">Home</a>
