@@ -10,7 +10,7 @@ namespace ProductSearchAPI
 {
     public interface IProductSearchService
     {
-        Task<List<Product>> SearchProducts(string queryText, int topResults);
+        Task<List<Product>> SearchProducts(string queryText, string semanticConfigName, string embeddingClientName, string vectorFieldName, int? topResults, int? nearestNeighbours);
         Task<SearchServiceStatistics> GetSearchServiceStatistics();
         Task<long> GetDocumentIndexCount();
     }
@@ -30,27 +30,41 @@ namespace ProductSearchAPI
             _openAIClient = openAIClient;
         }
 
-        public ReadOnlyMemory<float> GetEmbeddings(string input)
+        public ReadOnlyMemory<float> GetEmbeddings(string input, string embeddingClientName)
         {
-            EmbeddingClient embeddingClient = _openAIClient.GetEmbeddingClient("text-embedding-ada-002");
+            EmbeddingClient embeddingClient = _openAIClient.GetEmbeddingClient(embeddingClientName);
             Embedding embedding = embeddingClient.GenerateEmbedding(input);
             return embedding.Vector;
         }
 
-        public async Task<List<Product>> SearchProducts(string queryText, int topResults)
+        public async Task<List<Product>> SearchProducts(string queryText, string semanticConfigName, string embeddingClientName, string vectorFieldName, int? topResults = 10, int? nearestNeighbours = 3)
         {
-            string vectorFieldName = "Description_V";
-
-            ReadOnlyMemory<float> vectorizedResult = GetEmbeddings(queryText);
+            ReadOnlyMemory<float> vectorizedResult = GetEmbeddings(queryText, embeddingClientName);
             List<Product> products = new List<Product>();
 
             SearchResults<Product> response = await _searchClient.SearchAsync<Product>(
+                queryText,
                 new SearchOptions
                 {
                     VectorSearch = new()
                     {
-                        Queries = { new VectorizedQuery(vectorizedResult) { KNearestNeighborsCount = topResults, Fields = { vectorFieldName } } }
-                    }
+                        Queries = {
+                            new VectorizedQuery(vectorizedResult) {
+                                KNearestNeighborsCount = nearestNeighbours,
+                                Fields = { vectorFieldName }
+                            }
+                        }
+                    },
+                    SemanticSearch = new()
+                    {
+                        SemanticConfigurationName = semanticConfigName,
+                        QueryCaption = new(QueryCaptionType.Extractive),
+                        QueryAnswer = new(QueryAnswerType.Extractive),
+                    },
+                    QueryType = SearchQueryType.Semantic,
+                    Size = topResults,
+                    Select = { "Id", "Name", "Description", "Price", "Brand" }
+                    //Filter = "Price gt 100"
                 });
 
             int documentCount = 0;

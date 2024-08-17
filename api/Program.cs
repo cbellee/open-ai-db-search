@@ -12,6 +12,10 @@ var builder = WebApplication.CreateBuilder(args);
 var aiSearchEndpoint = builder.Configuration.GetSection("SearchClient:endpoint").Value;
 var aiSearchKey = builder.Configuration.GetSection("SearchClient:credential:key").Value;
 var aiSearchIndexName = builder.Configuration.GetSection("SearchClient:indexname").Value;
+var semanticConfigName = builder.Configuration.GetSection("SearchClient:semanticConfigName").Value;
+var vectorFieldName = builder.Configuration.GetSection("SearchClient:vectorFieldName").Value;
+int nearestNeighbours = builder.Configuration.GetValue<int>("SearchClient:nearestNeighbours");
+string embeddingClientName = builder.Configuration.GetSection("OpenAI:embeddingClientName").Value;
 
 AzureKeyCredential credential = new AzureKeyCredential(aiSearchKey);
 
@@ -38,10 +42,6 @@ var app = builder.Build();
 app.UseStatusCodePages();
 app.UseCors();
 
-app.Logger.LogInformation("AI Search Endpoint: " + aiSearchEndpoint);
-app.Logger.LogInformation("Key: "+ aiSearchKey);
-app.Logger.LogInformation("Index Name: " + aiSearchIndexName);
-
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -52,7 +52,7 @@ app.MapGet("/products", ([FromQuery(Name = "query")] string query, [FromQuery(Na
     [FromServices] IProductSearchService productService)
     =>
 {
-    Task<List<Product>> products = productService.SearchProducts(query, topResults);
+    Task<List<Product>> products = productService.SearchProducts(query, semanticConfigName, embeddingClientName, vectorFieldName, topResults, nearestNeighbours);
     return products;
 });
 

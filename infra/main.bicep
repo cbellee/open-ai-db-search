@@ -1,40 +1,36 @@
 param location string = 'australiaeast'
-param staticWebAppLocation string = 'eastasia'
+param swaLocation string = 'eastasia'
 param publisherEmail string
 param publisherName string
-param entraIdObjectId string
 param addressPrefix string = '10.100.0.0/16'
-param repoUrl string
-param repoBranch string
-param sqlAdminLogin string
-param gitHubToken string
 param isPrivate bool = true
 param imageName string
 param acrName string
-param aiSearchEndpoint string
-param aiSearchKey string
-param openAiConnection string
+param embeddingClientName string
+param partitionKey string = '/Id'
 param aiSearchIndex string
+param semanticConfigName string
 
 param tags object = {
   environment: 'dev'
 }
 
 var prefix = uniqueString(resourceGroup().id)
+var cosmosDbDatabaseName = 'catalogDb'
+var cosmosDbContainerName = 'products'
 var apimPip = '${prefix}-apim-ip'
 var swaUmidName = '${prefix}-swa-umid'
 var containerAppUmidName = '${prefix}-container-app-umid'
 var containerAppName = '${prefix}-container-app'
-var apimName = 'apim-${prefix}'
+var apimName = '${prefix}-apim'
 var apimUmidName = '${prefix}-apim-umid'
 var containerAppEnvironmentName = '${prefix}-container-app-env'
-var sqlServerName = '${prefix}-sql-server'
-var sqlPrivateEndpointName = '${prefix}-sql-pe'
 var apimNsgName = '${prefix}-apim-nsg'
 var cosmosDbPrivateEndpointName = '${prefix}-cosmosdb-pe'
-var sampleSqlDatabaseName = 'sqldb-adventureworks'
 var lawName = '${prefix}-law'
 var aiName = '${prefix}-ai'
+var openAiName = '${prefix}-openai'
+var swaName = '${prefix}-swa'
 
 resource apimUserManagedIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-07-31-preview' = {
   name: apimUmidName
@@ -155,7 +151,7 @@ resource vnet 'Microsoft.Network/virtualNetworks@2024-01-01' = {
       {
         name: 'apimSubnet'
         properties: {
-          addressPrefix: cidrSubnet(addressPrefix, 24, 0)
+          addressPrefix: cidrSubnet(cidrSubnet(addressPrefix, 22, 0), 24, 0)
           networkSecurityGroup: {
             id: apimNsg.id
           }
@@ -171,48 +167,15 @@ resource vnet 'Microsoft.Network/virtualNetworks@2024-01-01' = {
         }
       }
       {
-        name: 'funcSubnet'
-        properties: {
-          addressPrefix: cidrSubnet(addressPrefix, 24, 1)
-          delegations: [
-            {
-              name: 'funcDelegation'
-              type: 'Microsoft.Web/serverFarns'
-              properties: {
-                serviceName: 'Microsoft.Web/serverFarms'
-              }
-            }
-          ]
-        }
-      }
-      {
-        name: 'dataSubnet'
-        properties: {
-          addressPrefix: cidrSubnet(addressPrefix, 24, 2)
-        }
-      }
-      {
-        name: 'storageSubnet'
-        properties: {
-          addressPrefix: cidrSubnet(addressPrefix, 24, 3)
-        }
-      }
-      {
         name: 'privateEndpoontSubnet'
         properties: {
-          addressPrefix: cidrSubnet(addressPrefix, 24, 4)
-        }
-      }
-      {
-        name: 'mgmtSubnet'
-        properties: {
-          addressPrefix: cidrSubnet(addressPrefix, 24, 5)
+          addressPrefix: cidrSubnet(cidrSubnet(addressPrefix, 22, 0), 24, 1)
         }
       }
       {
         name: 'containerAppSubnet'
         properties: {
-          addressPrefix: cidrSubnet(addressPrefix, 23, 6)
+          addressPrefix: cidrSubnet(cidrSubnet(addressPrefix, 22, 1), 23, 0)
         }
       }
     ]
@@ -254,7 +217,7 @@ resource containerAppEnv 'Microsoft.App/managedEnvironments@2024-03-01' = {
     }
     vnetConfiguration: {
       internal: false
-      infrastructureSubnetId: vnet.properties.subnets[6].id
+      infrastructureSubnetId: vnet.properties.subnets[2].id
     }
   }
 }
@@ -274,19 +237,35 @@ resource backendContainerApp 'Microsoft.App/containerApps@2024-03-01' = {
       secrets: [
         {
           name: 'endpoint'
-          value: aiSearchEndpoint
+          value: 'https://${aiSearch.name}.search.windows.net'
         }
         {
           name: 'key'
-          value: aiSearchKey
+          value: aiSearch.listQueryKeys().value[0].key
         }
         {
           name: 'indexname'
           value: aiSearchIndex
         }
         {
+          name: 'semanticconfigname'
+          value: semanticConfigName
+        }
+        {
           name: 'openaiconnection'
-          value: openAiConnection
+          value: 'Endpoint=${openAi.properties.endpoint};Key=${listKeys(openAi.id, openAi.apiVersion).key1}'
+        }
+        {
+          name: 'aikey'
+          value: appInsights.properties.InstrumentationKey
+        }
+        {
+          name: 'clientid'
+          value: containerAppUserManagedIdentity.properties.clientId
+        }
+        {
+          name: 'embeddingclient'
+          value: embeddingClientName
         }
       ]
       registries: [
@@ -331,31 +310,43 @@ resource backendContainerApp 'Microsoft.App/containerApps@2024-03-01' = {
           env: [
             {
               name: 'APPINSIGHTS_INSTRUMENTATIONKEY'
-              value: appInsights.properties.InstrumentationKey
+              secretRef: 'aikey'
             }
             {
               name: 'AZURE_CLIENT_ID'
-              value: containerAppUserManagedIdentity.properties.clientId
+              secretRef: 'clientid'
             }
             {
               name: 'SearchClient__endpoint'
               secretRef: 'endpoint'
-              //value: aiSearchEndpoint
             }
             {
               name: 'SearchClient__credential__key'
               secretRef: 'key'
-              //value: aiSearchKey
             }
             {
               name: 'SearchClient__indexname'
               secretRef: 'indexname'
-              //value: aiSearchIndex
             }
             {
               name: 'ConnectionStrings__OpenAI'
               secretRef: 'openaiconnection'
-              //value: openAiConnection
+            }
+            {
+              name: 'semanticConfigName'
+              secretRef: 'semanticconfigname'
+            }
+            {
+              name: 'vectorFieldName'
+              value: 'Description_V'
+            }
+            {
+              name: 'nearestNeighbours'
+              value: '3'
+            }
+            {
+              name: 'OpenAI__embeddingClientName'
+              secretRef: 'embeddingclient'
             }
           ]
         }
@@ -369,6 +360,22 @@ resource backendContainerApp 'Microsoft.App/containerApps@2024-03-01' = {
   dependsOn: [
     acrPullRole
   ]
+}
+
+/* resource openAi 'Microsoft.CognitiveServices/accounts@2024-04-01-preview' = {
+  name: openAiName
+  location: location
+  sku: {
+    name: 'S0'
+  }
+  kind: 'OpenAI'
+  properties: {
+    publicNetworkAccess: 'Enabled'
+  }
+}
+ */
+resource openAi 'Microsoft.CognitiveServices/accounts@2024-04-01-preview' existing = {
+  name: openAiName
 }
 
 resource apimPublicIpAddress 'Microsoft.Network/publicIPAddresses@2024-01-01' = {
@@ -431,81 +438,25 @@ resource apim 'Microsoft.ApiManagement/service@2023-09-01-preview' = {
   }
 }
 
-/* resource api 'Microsoft.ApiManagement/service/apis@2023-09-01-preview' = {
+resource api 'Microsoft.ApiManagement/service/apis@2023-09-01-preview' = {
   parent: apim
   name: 'api'
   properties: {
-    path: '/api'
+    path: '/search-api'
     apiType: 'http'
-    displayName: 'api'
+    displayName: 'search-api'
     type: 'http'
     subscriptionRequired: false
     protocols: [
       'https'
     ]
-    serviceUrl: 'https://${flexFuncApp.properties.defaultHostName}'
-  }
-} */
-
-resource sqlServer 'Microsoft.Sql/servers@2023-08-01-preview' = {
-  name: sqlServerName
-  location: location
-  tags: tags
-  properties: {
-    publicNetworkAccess: 'Disabled'
-    administrators: {
-      login: sqlAdminLogin
-      administratorType: 'ActiveDirectory'
-      azureADOnlyAuthentication: true
-      sid: entraIdObjectId
-      principalType: 'User'
-      tenantId: tenant().tenantId
-    }
+    serviceUrl: 'https://${backendContainerApp.properties.configuration.ingress.fqdn}'
   }
 }
 
-resource sqlDatabase 'Microsoft.Sql/servers/databases@2021-11-01' = {
-  name: sampleSqlDatabaseName
-  parent: sqlServer
-  location: location
-  sku: {
-    name: 'Basic'
-    tier: 'Basic'
-    capacity: 5
-  }
-  tags: tags
-  properties: {
-    collation: 'SQL_Latin1_General_CP1_CI_AS'
-    maxSizeBytes: 104857600
-    sampleName: 'AdventureWorksLT'
-  }
-}
-
-resource sqlPrivateEndpoint 'Microsoft.Network/privateEndpoints@2024-01-01' = if (isPrivate) {
-  name: sqlPrivateEndpointName
-  location: location
-  tags: tags
-  properties: {
-    privateLinkServiceConnections: [
-      {
-        name: 'sqlServer'
-        properties: {
-          privateLinkServiceId: sqlServer.id
-          groupIds: [
-            'sqlServer'
-          ]
-        }
-      }
-    ]
-    subnet: {
-      id: vnet.properties.subnets[4].id
-    }
-  }
-}
-
-/* resource swa 'Microsoft.Web/staticSites@2023-12-01' = {
-  name: staticWebAppName
-  location: staticWebAppLocation
+resource swa 'Microsoft.Web/staticSites@2023-12-01' = {
+  name: swaName
+  location: swaLocation
   identity: {
     type: 'UserAssigned'
     userAssignedIdentities: {
@@ -520,22 +471,22 @@ resource sqlPrivateEndpoint 'Microsoft.Network/privateEndpoints@2024-01-01' = if
     tier: 'Standard'
   }
   properties: {
-    repositoryUrl: repoUrl //'https://github.com/cbellee/open-ai-db-search'
-    branch: repoBranch
+    //repositoryUrl: repoUrl //'https://github.com/cbellee/open-ai-db-search'
+    //branch: repoBranch
     stagingEnvironmentPolicy: 'Enabled'
     allowConfigFileUpdates: true
-    provider: 'GitHub'
+    provider: 'Other'
     enterpriseGradeCdnStatus: 'Disabled'
-    repositoryToken: gitHubToken
-    buildProperties: {
-      outputLocation: '/dist'
-      appLocation: '/spa'
-      //apiLocation: '/api'
-    }
+    //repositoryToken: gitHubToken
+    //buildProperties: {
+    //  outputLocation: '/dist'
+    //  appLocation: '/spa'
+    //apiLocation: '/api'
+    //}
   }
 }
 
-resource swa_auth 'Microsoft.Web/staticSites/basicAuth@2023-12-01' = {
+/* resource swa_auth 'Microsoft.Web/staticSites/basicAuth@2023-12-01' = {
   parent: swa
   name: 'default'
   properties: {
@@ -547,11 +498,11 @@ resource swa_backend 'Microsoft.Web/staticSites/linkedBackends@2023-12-01' = {
   parent: swa
   name: 'api-backend'
   properties: {
-    backendResourceId: apim.id //'${apim.properties.gatewayUrl}/${api.properties.path}'
+    backendResourceId: apim.id
     region: location
   }
-} */
-
+}
+ */
 resource aiSearch 'Microsoft.Search/searchServices@2024-06-01-preview' = {
   name: '${prefix}-search'
   location: location
@@ -567,11 +518,12 @@ resource aiSearch 'Microsoft.Search/searchServices@2024-06-01-preview' = {
   }
 }
 
-resource cosmosDb 'Microsoft.DocumentDB/databaseAccounts@2024-05-15' = {
+resource cosmosDbAccount 'Microsoft.DocumentDB/databaseAccounts@2024-05-15' = {
   name: '${prefix}-cosmosdb'
   location: location
   tags: tags
   properties: {
+    networkAclBypass: 'AzureServices'
     databaseAccountOfferType: 'Standard'
     locations: [
       {
@@ -584,6 +536,32 @@ resource cosmosDb 'Microsoft.DocumentDB/databaseAccounts@2024-05-15' = {
   }
 }
 
+resource database 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases@2022-05-15' = {
+  parent: cosmosDbAccount
+  name: cosmosDbDatabaseName
+  properties: {
+    resource: {
+      id: cosmosDbDatabaseName
+    }
+  }
+}
+
+resource container 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases/containers@2024-05-15' = {
+  parent: database
+  name: cosmosDbContainerName
+  properties: {
+    resource: {
+      id: cosmosDbContainerName
+      partitionKey: {
+        paths: [
+          partitionKey
+        ]
+        kind: 'Hash'
+      }
+    }
+  }
+}
+
 resource cosmosDbPrivateEndpoint 'Microsoft.Network/privateEndpoints@2024-01-01' = if (isPrivate) {
   name: cosmosDbPrivateEndpointName
   location: location
@@ -593,7 +571,7 @@ resource cosmosDbPrivateEndpoint 'Microsoft.Network/privateEndpoints@2024-01-01'
       {
         name: 'Sql'
         properties: {
-          privateLinkServiceId: cosmosDb.id
+          privateLinkServiceId: cosmosDbAccount.id
           groupIds: [
             'Sql'
           ]
@@ -601,23 +579,8 @@ resource cosmosDbPrivateEndpoint 'Microsoft.Network/privateEndpoints@2024-01-01'
       }
     ]
     subnet: {
-      id: vnet.properties.subnets[4].id
+      id: vnet.properties.subnets[1].id
     }
-  }
-}
-
-resource sqlPrivateLinkServiceGroup 'Microsoft.Network/privateEndpoints/privateDnsZoneGroups@2024-01-01' = if (isPrivate) {
-  parent: sqlPrivateEndpoint
-  name: '${prefix}-sqlserver-plsg'
-  properties: {
-    privateDnsZoneConfigs: [
-      {
-        name: 'sqlServer'
-        properties: {
-          privateDnsZoneId: sqlServerPrivateDnsZone.id
-        }
-      }
-    ]
   }
 }
 
@@ -672,10 +635,8 @@ resource cosmosDbPrivateDnsZoneLink 'Microsoft.Network/privateDnsZones/virtualNe
   }
 }
 
-output sqlServerName string = sqlServer.name
-output sqlDbName string = sqlDatabase.name
 output swaUmidName string = swaUserManagedIdentity.name
+output swaName string = swa.name
 output apimName string = apim.name
-output containerAppUmidName string = containerAppUserManagedIdentity.name
 output containerAppName string = backendContainerApp.name
 output containerAppFqdn string = backendContainerApp.properties.configuration.ingress.fqdn

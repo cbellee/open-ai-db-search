@@ -6,7 +6,6 @@ export default function Search({ childToParentSearchQuery, childToParentTopResul
 
     return (
         <div>
-            <span class="">Search</span>
             <div class="inline-flex float-left">
                 <div class="absolute inset-y-0 start-0 flex items-center ps-3 pointer-events-auto ">
                     <button
@@ -14,7 +13,7 @@ export default function Search({ childToParentSearchQuery, childToParentTopResul
                         class="w-4 h-4"
                         onClick={() => { childToParentSearchQuery(text); childToParentTopResults(topResult); setText('') }}
                     >
-                        <div class="bg-[url('search-icon.png')] bg-cover w-4 h-4 opacity-45 hover:opacity-100"></div>
+                        <div class="bg-[url('/search-icon.png')] bg-cover w-4 h-4 opacity-45 hover:opacity-100"></div>
                     </button>
                     <span class="sr-only">Search icon</span>
                 </div>
