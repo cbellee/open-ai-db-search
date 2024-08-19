@@ -1,8 +1,8 @@
 import React, { useState, useRef } from 'react';
 
-export default function Search({ childToParentSearchQuery, childToParentTopResults }) {
+export default function Search({ childToParentSearchQuery, childToParentCardsPerPage }) {
     const [text, setText] = useState('');
-    const [topResult, setTopResult] = useState(10);
+    const [resultsPerPage, setResultsPerPage] = useState(10);
 
     return (
         <div>
@@ -11,7 +11,7 @@ export default function Search({ childToParentSearchQuery, childToParentTopResul
                     <button
                         type="button"
                         class="w-4 h-4"
-                        onClick={() => { childToParentSearchQuery(text); childToParentTopResults(topResult); setText('') }}
+                        onClick={() => { childToParentSearchQuery(text); childToParentCardsPerPage(resultsPerPage); setText('') }}
                     >
                         <div class="bg-[url('/search-icon.png')] bg-cover w-4 h-4 opacity-45 hover:opacity-100"></div>
                     </button>
@@ -23,7 +23,7 @@ export default function Search({ childToParentSearchQuery, childToParentTopResul
                     onChange={(event) => setText(event.target.value)}
                     placeholder="Type your query..."
                 />
-                <select class="bg-gray-50 border ml-2 p-2 border-gray-300 text-gray-900 text-sm rounded-md focus:ring-blue-500 focus:border-blue-500 block dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" name="topResults" onChange={(event) => setTopResult(event.target.value)}>
+                <select class="bg-gray-50 border ml-2 p-2 border-gray-300 text-gray-900 text-sm rounded-md focus:ring-blue-500 focus:border-blue-500 block dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" name="topResults" onChange={(event) => setResultsPerPage(event.target.value)}>
                     <option value={10} defaultValue={10}>10</option>
                     <option value={20}>20</option>
                     <option value={50}>50</option>

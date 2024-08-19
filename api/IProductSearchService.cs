@@ -10,7 +10,7 @@ namespace ProductSearchAPI
 {
     public interface IProductSearchService
     {
-        Task<List<Product>> SearchProducts(string queryText, string semanticConfigName, string embeddingClientName, string vectorFieldName, int? topResults, int? nearestNeighbours);
+        Task<List<Product>> SearchProducts(string queryText, string semanticConfigName, string embeddingClientName, string vectorFieldName, int? nearestNeighbours);
         Task<SearchServiceStatistics> GetSearchServiceStatistics();
         Task<long> GetDocumentIndexCount();
     }
@@ -37,7 +37,7 @@ namespace ProductSearchAPI
             return embedding.Vector;
         }
 
-        public async Task<List<Product>> SearchProducts(string queryText, string semanticConfigName, string embeddingClientName, string vectorFieldName, int? topResults = 10, int? nearestNeighbours = 3)
+        public async Task<List<Product>> SearchProducts(string queryText, string semanticConfigName, string embeddingClientName, string vectorFieldName, int? nearestNeighbours = 3)
         {
             ReadOnlyMemory<float> vectorizedResult = GetEmbeddings(queryText, embeddingClientName);
             List<Product> products = new List<Product>();
@@ -62,7 +62,7 @@ namespace ProductSearchAPI
                         QueryAnswer = new(QueryAnswerType.Extractive),
                     },
                     QueryType = SearchQueryType.Semantic,
-                    Size = topResults,
+                    //Size = topResults,
                     Select = { "Id", "Name", "Description", "Price", "Brand" }
                     //Filter = "Price gt 100"
                 });

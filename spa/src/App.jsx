@@ -4,21 +4,35 @@ import NavBar from './components/NavBar.jsx';
 import Search from './components/Search.jsx';
 import Footer from './components/Footer.jsx';
 import DataCardGrid from './components/DataCardGrid.jsx';
+import usePagination from './components/Pagination.jsx';
+import { Pagination } from '@mui/material';
 import * as _ from 'lodash';
 
 function App() {
   const [searchResult, setSearchResult] = useState('');
-  const [searchQuery, setSearchQuery] = useState('all');
-  const [topResults, setTopResults] = useState('10');
+  const [searchQuery, setSearchQuery] = useState('shoes');
+  const [cardsPerPage, setCardsPerPage] = useState('10');
 
-  let url = `${import.meta.env.VITE_API_URI}?query=${searchQuery}&top=${topResults}`
+  let url = `${import.meta.env.VITE_API_URI}?query=${searchQuery}&top=${cardsPerPage}`
+  let [page, setPage] = useState(1);
+  // const cardsPerPage = 8;
+
+  const count = Math.ceil(searchResult.length / cardsPerPage);
+  const paginationData = usePagination(searchResult, cardsPerPage);
+
+  const handlePageChange = (e, p) => {
+    setPage(p);
+    paginationData.jump(p);
+  };
 
   const childToParentSearchQuery = (childData) => {
     setSearchQuery(childData);
+    paginationData.jump(1);
+    setPage(1);
   }
 
-  const childToParentTopResults = (childData) => {
-    setTopResults(childData);
+  const childToParentCardsPerPage = (childData) => {
+    setCardsPerPage(childData);
   }
 
   useEffect(() => {
@@ -46,17 +60,39 @@ function App() {
   };
 
   return (
-    <body class="flex flex-col min-h-screen">
-      <main class="bg-slate-700 flex-grow">
+    <body class="flex flex-col">
+      <main class="bg-slate-700">
         <div class="flex justify-center max-w-screen-2xl flex-col mx-auto">
           <NavBar>
-            <Search childToParentSearchQuery={childToParentSearchQuery} childToParentTopResults={childToParentTopResults} />
+            <Search childToParentSearchQuery={childToParentSearchQuery} childToParentCardsPerPage={childToParentCardsPerPage} />
           </NavBar>
-          <div class="content-center min-h-screen p-5 flex bg-slate-200 justify-center justify-items-center">
+          <div class="min-h-screen p-5 flex-row bg-slate-200 ">
+            <div class="flex pt-4 justify-center">
+              <Pagination
+                class={`${paginationData.currentData().length <= 0 ? `opacity-0` : `opacity-100`}`}
+                count={count}
+                size="large"
+                page={page}
+                variant="outlined"
+                shape="rounded"
+                onChange={handlePageChange}
+              />
+            </div>
             <div class="flex-row pt-5">
-              {searchResult.length > 0 &&
-                <DataCardGrid data={searchResult} class="flex justify-center" />
+              {paginationData.currentData().length > 0 &&
+                <DataCardGrid data={paginationData.currentData()} class="flex justify-center" />
               }
+            </div>
+            <div class="flex pt-4 justify-center">
+              <Pagination
+                class={`${paginationData.currentData().length <= 0 ? `opacity-0` : `opacity-100`}`}
+                count={count}
+                size="large"
+                page={page}
+                variant="outlined"
+                shape="rounded"
+                onChange={handlePageChange}
+              />
             </div>
           </div>
           <Footer />

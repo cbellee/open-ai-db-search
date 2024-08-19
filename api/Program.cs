@@ -48,11 +48,11 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-app.MapGet("/products", ([FromQuery(Name = "query")] string query, [FromQuery(Name = "top")] int topResults,
+app.MapGet("/products", ([FromQuery(Name = "query")] string query, //[FromQuery(Name = "top")] int topResults,
     [FromServices] IProductSearchService productService)
     =>
 {
-    Task<List<Product>> products = productService.SearchProducts(query, semanticConfigName, embeddingClientName, vectorFieldName, topResults, nearestNeighbours);
+    Task<List<Product>> products = productService.SearchProducts(query, semanticConfigName, embeddingClientName, vectorFieldName, nearestNeighbours);
     return products;
 });
 
