@@ -13,9 +13,8 @@ function App() {
   const [searchQuery, setSearchQuery] = useState('shoes');
   const [cardsPerPage, setCardsPerPage] = useState('10');
 
-  let url = `${import.meta.env.VITE_API_URI}?query=${searchQuery}&top=${cardsPerPage}`
+  let url = `${import.meta.env.VITE_API_URI}?query=${searchQuery}`
   let [page, setPage] = useState(1);
-  // const cardsPerPage = 8;
 
   const count = Math.ceil(searchResult.length / cardsPerPage);
   const paginationData = usePagination(searchResult, cardsPerPage);
@@ -67,6 +66,9 @@ function App() {
             <Search childToParentSearchQuery={childToParentSearchQuery} childToParentCardsPerPage={childToParentCardsPerPage} />
           </NavBar>
           <div class="min-h-screen p-5 flex-row bg-slate-200 ">
+            {
+              console.log("total items: " + searchResult.length)
+            }
             <div class="flex pt-4 justify-center">
               <Pagination
                 class={`${paginationData.currentData().length <= 0 ? `opacity-0` : `opacity-100`}`}

@@ -9,15 +9,15 @@ export default function DataCardGrid({ data }) {
 
   return (
     <Box>
-      <Grid container spacing={{ xs: 1, md: 3 }} columns={{ xs: 4, sm: 8, md: 16 }}>
+      <div class="grid place-items-stretch sm:grid-cols-2 sm:gap-2 md:grid-cols-3 md:gap-3 lg:grid-cols-5 lg:gap-4">
         {data.length &&
           data.map((row, index) => (
-            <Grid item xs={1} sm={3} md={4} key={index}>
+            <div class="" key={index}>
               <DataCard key={index} item={row} index={index}></DataCard>
-            </Grid>
+            </div>
           ))
         }
-      </Grid>
+      </div>
     </Box>
   );
 }

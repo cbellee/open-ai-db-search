@@ -36,7 +36,7 @@ export default function DataCard({ item, index }) {
     };
 
     return (
-        <Card class="m-0 max-w-96 min-w-60 bg-white rounded-md shadow-md">
+        <Card class="m-0 max-w-72 bg-white rounded-md shadow-md">
             <CardHeader
                 class="min-h-32 p-5 text-white bg-slate-800 rounded-t-md"
                 title={item.name}
@@ -67,19 +67,19 @@ export default function DataCard({ item, index }) {
             </CardContent>
             <CardContent class="pl-4 font-light">
                 <List>
-                    <ListItem class="p-0 m-0">
-                        <Typography variant="body2" color="text.secondary">
+                    <ListItem class="p-0 m-0 flex-row">
+                        <Typography variant="body2" color="text.secondary" class="text-pretty font-light">
                             Price: ${item.price}
                         </Typography>
                     </ListItem>
-                    <ListItem class="p-0 m-0">
-                        <Typography variant="body2" color="text.secondary">
+                    <ListItem class="p-0 m-0 flex-row">
+                        <Typography variant="body2" color="text.secondary" class="text-pretty font-light">
                             Type: {item.type}
                         </Typography>
                     </ListItem>
                 </List>
             </CardContent>
-            <CardActions disableSpacing>
+            <CardActions disableSpacing class="">
                 <IconButton aria-label="add to favorites" color='error'>
                     <Favorite />
                 </IconButton>

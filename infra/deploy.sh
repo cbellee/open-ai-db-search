@@ -4,13 +4,11 @@ subscription=$(az account show --query id --output tsv)
 entraIdUsername=$(az ad signed-in-user show --query userPrincipalName -o tsv)
 entraIdObjectId=$(az ad signed-in-user show --query id -o tsv)
 publisherName=$(echo $entraIdUsername | cut -d "@" -f 1)
-version=v0.0.5
+version=v0.0.7
 aiSearchIndexName='index1723847584827'
 semanticConfigName='semantic-config'
 embeddingClientName='text-embedding-ada-002'
 partitionKey='/Id'
-
-source ./.env
 
 # create resource group
 az group create --location $location --name $resourceGroupName
@@ -19,24 +17,24 @@ az group create --location $location --name $resourceGroupName
 az deployment group create \
     --name 'acr-deployment' \
     --resource-group $resourceGroupName \
-    --template-file ./infra/acr.bicep \
+    --template-file ./acr.bicep \
     --parameters location=$location
 
 # get deployment output
 acrName=$(az deployment group show --resource-group $resourceGroupName --name acr-deployment --query properties.outputs.acrName.value --output tsv)
 imageName=$acrName.azurecr.io/ai-search-api:$version
 
-cd ./api
+cd ../api
 az acr login -n $acrName
 docker build -t $imageName .
 docker push $imageName
-cd ..
+cd ../infra
 
 # deploy resources
 az deployment group create \
     --name 'main-deployment' \
     --resource-group $resourceGroupName \
-    --template-file ./infra/main.bicep \
+    --template-file ./main.bicep \
     --parameters location=$location \
     --parameters publisherEmail=$entraIdUsername \
     --parameters publisherName=$publisherName \
@@ -53,10 +51,10 @@ backendFqdn=$(az deployment group show --resource-group $resourceGroupName --nam
 swaName=$(az deployment group show --resource-group $resourceGroupName --name main-deployment --query properties.outputs.swaName.value --output tsv)
 
 # update backend uri for React frontend
-echo "VITE_API_URI=https://$backendFqdn/products" > ./.env
+echo "VITE_API_URI=https://$backendFqdn/products" > ./spa/.env
 
 # build & deploy front end to SWA
-cd ../spa
+cd ./spa
 
 deploymentToken=$(az staticwebapp secrets list --name $swaName --query "properties.apiKey" -o tsv)
 
@@ -68,4 +66,6 @@ swa deploy ./dist \
     --app-location . \
     -d $deploymentToken \
     --resource-group $resourceGroupNameb\
-    --app-name ggxp4x2dg3jdy-swa
+    --app-name $swaName
+
+cd ..

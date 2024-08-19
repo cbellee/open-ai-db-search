@@ -62,9 +62,7 @@ namespace ProductSearchAPI
                         QueryAnswer = new(QueryAnswerType.Extractive),
                     },
                     QueryType = SearchQueryType.Semantic,
-                    //Size = topResults,
-                    Select = { "Id", "Name", "Description", "Price", "Brand" }
-                    //Filter = "Price gt 100"
+                    Select = { "Id", "Name", "Description", "Price", "Brand", "Type" }
                 });
 
             int documentCount = 0;
