@@ -36,12 +36,12 @@ export default function DataCard({ item, index }) {
     };
 
     return (
-        <Card class="m-0 max-w-72 bg-white rounded-md shadow-md">
+        <Card class="m-0 max-w-72 bg-white rounded-md shadow-lg">
             <CardHeader
                 class="min-h-32 p-5 text-white bg-slate-800 rounded-t-md"
                 title={item.name}
-                titleTypographyProps={{ variant: 'h5' }}
-                subheaderTypographyProps={{ color: 'antiquewhite' }}
+                titleTypographyProps={{ variant: 'h6' }}
+                subheaderTypographyProps={{ color: 'wheat', variant: 'h7' }}
                 subheader={item.brand}
             />
             <CardMedia

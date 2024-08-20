@@ -62,14 +62,12 @@ function App() {
     <body class="flex flex-col">
       <main class="bg-slate-700">
         <div class="flex justify-center max-w-screen-2xl flex-col mx-auto">
-          <NavBar>
-            <Search childToParentSearchQuery={childToParentSearchQuery} childToParentCardsPerPage={childToParentCardsPerPage} />
-          </NavBar>
-          <div class="min-h-screen p-5 flex-row bg-slate-200 ">
-            {
-              console.log("total items: " + searchResult.length)
-            }
-            <div class="flex pt-4 justify-center">
+          <NavBar />
+          <div class="flex-grow">
+            <Search class="" childToParentSearchQuery={childToParentSearchQuery} childToParentCardsPerPage={childToParentCardsPerPage} />
+          </div>
+          <div class="min-h-screen p-5  bg-slate-200 ">
+            <div class="flex justify-center">
               <Pagination
                 class={`${paginationData.currentData().length <= 0 ? `opacity-0` : `opacity-100`}`}
                 count={count}
