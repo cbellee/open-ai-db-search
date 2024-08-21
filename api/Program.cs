@@ -48,7 +48,7 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-app.MapGet("/products", ([FromQuery(Name = "query")] string query, //[FromQuery(Name = "top")] int topResults,
+app.MapGet("/products", ([FromQuery(Name = "query")] string query,
     [FromServices] IProductSearchService productService)
     =>
 {
