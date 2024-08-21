@@ -1,7 +1,0 @@
-@backend_HostAddress = http://localhost:5075
-
-GET {{backend_HostAddress}}/products
-Accept: application/json
-
-###
-
