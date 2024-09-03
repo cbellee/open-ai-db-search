@@ -17,7 +17,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\ProductSearchAPI.csproj" />
+    <ProjectReference Include="..\ProductSearchAPI\ProductSearchAPI.csproj" />
   </ItemGroup>
 
   <ItemGroup>

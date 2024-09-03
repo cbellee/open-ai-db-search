@@ -1,6 +1,4 @@
 {
-    "@odata.context": "https://ggxp4x2dg3jdy-search.search.windows.net/$metadata#indexes/$entity",
-    "@odata.etag": "\"0x8DCBDA78EC45EAC\"",
     "name": "products-index",
     "defaultScoringProfile": null,
     "fields": [
@@ -102,7 +100,7 @@
       {
         "name": "Price",
         "type": "Edm.Double",
-        "searchable": false,
+        "searchable": true,
         "filterable": true,
         "retrievable": true,
         "stored": true,
