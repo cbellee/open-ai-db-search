@@ -2,11 +2,11 @@ import React from "react";
 
 export default function NavBar({children}) {
     return (
-        <nav class="border-slate-200 dark:bg-slate-900 rounded-t-2xl">
+        <nav class="border-slate-200 dark:bg-slate-900">
             <div class="max-w-screen-xl flex flex-wrap items-center h-24 justify-between mx-auto p-0">
                 <a href="https://azure.microsoft.com/en-us/products/ai-services/ai-search" class="flex items-center space-x-3 rtl:space-x-reverse">
                     <img src="logo.png" class="h-10" alt="AI Search Logo" />
-                    <span class="text-3xl font-semibold whitespace-nowrap text-white">AI Search</span>
+                    <span class="text-3xl font-semibold whitespace-nowrap text-white">Contoso Products</span>
                 </a>
                 <div class="flex md:order-2">
                     

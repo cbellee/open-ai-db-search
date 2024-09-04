@@ -147,8 +147,6 @@ namespace ProductSearchAPI
                     options);
 
                 _logger.LogInformation($"response count: {response.TotalCount}");
-                _logger.LogInformation($"semantic search count: {response.SemanticSearch.Answers.Count}");
-                _logger.LogInformation($"response count: {response.SemanticSearch.Answers}");
 
                 int documentCount = 0;
                 await foreach (SearchResult<Product> result in response.GetResultsAsync())

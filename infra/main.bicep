@@ -10,6 +10,10 @@ param embeddingClientName string
 param partitionKey string = '/Id'
 param aiSearchIndex string
 param semanticConfigName string
+param model string
+param systemPromptFileName string
+param storageContainerName string
+param gpt4Key string
 
 param tags object = {
   environment: 'dev'
@@ -31,6 +35,7 @@ var lawName = '${prefix}-law'
 var aiName = '${prefix}-ai'
 var openAiName = '${prefix}-openai'
 var swaName = '${prefix}-swa'
+var storageAccountName = '${prefix}stor'
 
 resource apimUserManagedIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-07-31-preview' = {
   name: apimUmidName
@@ -49,6 +54,34 @@ resource containerAppUserManagedIdentity 'Microsoft.ManagedIdentity/userAssigned
 
 resource acr 'Microsoft.ContainerRegistry/registries@2023-11-01-preview' existing = {
   name: acrName
+}
+
+resource storage 'Microsoft.Storage/storageAccounts@2023-05-01' = {
+  name: storageAccountName
+  location: location
+  sku: {
+    name: 'Standard_LRS'
+  }
+  kind: 'StorageV2'
+  properties: {
+    accessTier: 'Hot'
+    allowBlobPublicAccess: true
+    publicNetworkAccess: 'Enabled'
+    supportsHttpsTrafficOnly: true
+  }
+}
+
+resource blobService 'Microsoft.Storage/storageAccounts/blobServices@2023-05-01' = {
+  name: 'default'
+  parent: storage
+}
+
+resource storageContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-05-01' = {
+  name: storageContainerName
+  parent: blobService
+  properties: {
+    publicAccess: 'Blob'
+  }
 }
 
 resource acrPullRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
@@ -267,6 +300,22 @@ resource backendContainerApp 'Microsoft.App/containerApps@2024-03-01' = {
           name: 'embeddingclient'
           value: embeddingClientName
         }
+        {
+          name: 'model'
+          value: model
+        }
+        {
+          name: 'gpt4key'
+          value: gpt4Key
+        }
+        {
+          name: 'systempromptfilename'
+          value: systemPromptFileName
+        }
+        {
+          name: 'storageaccounturl'
+          value: '${storage.properties.primaryEndpoints.blob}${storageContainerName}/'
+        }
       ]
       registries: [
         {
@@ -325,7 +374,7 @@ resource backendContainerApp 'Microsoft.App/containerApps@2024-03-01' = {
               secretRef: 'key'
             }
             {
-              name: 'SearchClient__indexname'
+              name: 'SearchClient__indexName'
               secretRef: 'indexname'
             }
             {
@@ -347,6 +396,22 @@ resource backendContainerApp 'Microsoft.App/containerApps@2024-03-01' = {
             {
               name: 'OpenAI__embeddingClientName'
               secretRef: 'embeddingclient'
+            }
+            {
+              name: 'OpenAI__model'
+              secretRef: 'model'
+            }
+            {
+              name: 'OpenAI__gpt4Key'
+              secretRef: 'gpt4key'
+            }
+            {
+              name: 'OpenAI__systemPromptFileName'
+              secretRef: 'systempromptfilename'
+            }
+            {
+              name: 'OpenAI__storageAccountUrl'
+              secretRef: 'storageaccounturl'
             }
           ]
         }
@@ -640,3 +705,6 @@ output swaName string = swa.name
 output apimName string = apim.name
 output containerAppName string = backendContainerApp.name
 output containerAppFqdn string = backendContainerApp.properties.configuration.ingress.fqdn
+output storageAccountName string = storage.name
+output storageAccountUrl string = storage.properties.primaryEndpoints.blob
+output storageContainerUrl string = '${storage.properties.primaryEndpoints.blob}${storageContainerName}/'

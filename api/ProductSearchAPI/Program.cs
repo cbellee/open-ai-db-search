@@ -7,19 +7,20 @@ using Microsoft.AspNetCore.Http.HttpResults;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// NOTE: if the App won't start, take a look at excluded ports list & change your default ports to outside of the ranges returned.
+// NOTE: if the App won't start in VS, take a look at excluded ports list & change your default ports to outside of the ranges returned.
 // $ netsh interface ipv4 show excludedportrange protocol=tcp
 
 var aiSearchEndpoint = builder.Configuration.GetSection("SearchClient:endpoint").Value;
 var aiSearchKey = builder.Configuration.GetSection("SearchClient:credential:key").Value;
-var aiSearchIndexName = builder.Configuration.GetSection("SearchClient:indexname").Value;
+var aiSearchIndexName = builder.Configuration.GetSection("SearchClient:indexName").Value;
 var semanticConfigName = builder.Configuration.GetSection("SearchClient:semanticConfigName").Value;
 var vectorFieldName = builder.Configuration.GetSection("SearchClient:vectorFieldName").Value;
 int nearestNeighbours = builder.Configuration.GetValue<int>("SearchClient:nearestNeighbours");
 string embeddingClientName = builder.Configuration.GetSection("OpenAI:embeddingClientName").Value;
 string chatGptModelName = builder.Configuration.GetSection("OpenAI:model").Value;
-string chatGptKey = builder.Configuration.GetSection("OpenAI:key").Value;
+string chatGptKey = builder.Configuration.GetSection("OpenAI:gpt4Key").Value;
 string systemPromptFileName = builder.Configuration.GetSection("OpenAI:systemPromptFileName").Value;
+
 List<string> fields = new List<string> { "Name", "Description", "Brand", "Type" };
 
 AzureKeyCredential credential = new AzureKeyCredential(aiSearchKey);

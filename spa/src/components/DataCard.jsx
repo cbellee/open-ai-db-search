@@ -4,55 +4,29 @@ import { Card, CardContent, Typography, CardActions, CardHeader, CardMedia, Avat
 import { Favorite, Share } from '@mui/icons-material'
 
 export default function DataCard({ item, index }) {
-    var imageData = {
-        images: [
-            {
-                "image": "images/watch-1.jpg"
-            },
-            {
-                "image": "images/watch-2.jpg"
-            },
-            {
-                "image": "images/outdoor-1.jpg"
-            },
-            {
-                "image": "images/rope-1.jpg"
-            },
-            {
-                "image": "images/headphones-1.jpg"
-            },
-            {
-                "image": "images/climbing-1.jpg"
-            }
-        ]
-    }
+
+    let storageAccountUrl = `${import.meta.env.VITE_STORAGE_ACCOUNT_URL}`
 
     const executeOnClick = (isExpanded) => {
     }
 
-    function randomNumberInRange(min, max) {
-        return Math.floor(Math.random()
-            * (max - min + 1)) + min;
-    };
-
     return (
-        <Card class="m-0 max-w-72 bg-white rounded-md shadow-lg">
-            <CardHeader
-                class="min-h-32 p-5 text-white bg-slate-800 rounded-t-md"
-                title={item.name}
-                titleTypographyProps={{ variant: 'h6' }}
-                subheaderTypographyProps={{ color: 'wheat', variant: 'h7' }}
-                subheader={item.brand}
-            />
+        <Card class="m-0 max-w-72 bg-white rounded-md shadow-xl">
             <CardMedia
                 component="img"
-                image={imageData.images[randomNumberInRange(0, 5)].image}
+                image={`${storageAccountUrl}${item.imageName}`}
                 alt="Product Image"
-                class="object-scale-down"
-                sx={{ padding: "0 0 0 0", margin: "0 0 0 0", minHeight: 0, objectFit: "fill" }}
+                sx={{ 'border-radius': '6px 6px 0px 0px', padding: "0 0 0 0", margin: "0 0 0 0", minHeight: 0, objectFit: "fill" }}
             />
-            <CardContent>
-                <Typography variant="body3" color="text.secondary" class="text-pretty font-light">
+            <CardContent class="p-2">
+                <Typography class="text-lg font-semibold">
+                    {item.name}
+                </Typography>
+                <Typography class="text-sm text-cyan-700 font-semibold">
+                    {item.brand}
+                </Typography>
+                <br />
+                <Typography color="text.secondary" class="font-light">
                     <ShowMoreText
                         lines={4}
                         more="Read more"
@@ -65,27 +39,18 @@ export default function DataCard({ item, index }) {
                     </ShowMoreText>
                 </Typography>
             </CardContent>
-            <CardContent class="pl-4 font-light">
-                <List>
-                    <ListItem class="p-0 m-0 flex-row">
-                        <Typography variant="body2" color="text.secondary" class="text-pretty font-light">
-                            Price: ${item.price}
-                        </Typography>
-                    </ListItem>
-                    <ListItem class="p-0 m-0 flex-row">
-                        <Typography variant="body2" color="text.secondary" class="text-pretty font-light">
-                            Type: {item.type}
-                        </Typography>
-                    </ListItem>
-                </List>
-            </CardContent>
-            <CardActions disableSpacing class="">
-                <IconButton aria-label="add to favorites" color='error'>
+            <br />
+            <CardActions disableSpacing class="relative flex p-0 justify-end">
+                <Typography variant="body2" color="text.secondary" class="pl-2 text-pretty text-lg font-semibold absolute left-0">
+                    ${item.price}
+                </Typography>
+                <IconButton aria-label="add to favorites" color='error' class="pb-2 fill-current text-red-400 hover:text-red-600">
                     <Favorite />
                 </IconButton>
-                <IconButton aria-label="share" color='info'>
+                <IconButton aria-label="share" color='info' class="pb-2 pr-2 fill-current text-blue-400 hover:text-blue-600">
                     <Share />
                 </IconButton>
+
             </CardActions>
         </Card>
     )
