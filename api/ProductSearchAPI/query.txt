@@ -5,10 +5,10 @@ The expected filters are 'Brand' and 'Price'.
 UserInput: Do you have ski gear under $100?
 Output: {"Filter": "Price lt 100"}
 
-UserInput: Do you have bike helmets from Daybird which are less than $100?
+UserInput: Do you have bike helmets from Daybird less than $100?
 Output: {"Filter": "Brand eq 'Daybird' and Price lt 100"}
 
-UserInput: Do you have snow boards from Rossignol which are more than $800?
-Output: {"Filter": "Brand eq 'Rossignol' and Price lt 800"}
+UserInput: Do you have snow boards from Zephyr more than $800?
+Output: {"Filter": "Brand eq 'Zephyr' and Price gt 800"}
 
 UserInput:
