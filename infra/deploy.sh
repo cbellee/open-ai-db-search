@@ -33,12 +33,11 @@ az acr login -n $acrName
 docker build -t $imageName .
 docker push $imageName
 
+# cd <pyhon job Dockerfile location>
 # docker build -t $jobImageName .
 # docker push $jobImageName
 
 cd ../../infra
-
-
 
 # deploy resources
 az deployment group create \
