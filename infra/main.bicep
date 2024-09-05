@@ -14,6 +14,7 @@ param model string
 param systemPromptFileName string
 param storageContainerName string
 param gpt4Key string
+param jobImageName string
 
 param tags object = {
   environment: 'dev'
@@ -36,6 +37,7 @@ var aiName = '${prefix}-ai'
 var openAiName = '${prefix}-openai'
 var swaName = '${prefix}-swa'
 var storageAccountName = '${prefix}stor'
+var containerJobName = '${prefix}-contaibner-job'
 
 resource apimUserManagedIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-07-31-preview' = {
   name: apimUmidName
@@ -251,6 +253,49 @@ resource containerAppEnv 'Microsoft.App/managedEnvironments@2024-03-01' = {
     vnetConfiguration: {
       internal: false
       infrastructureSubnetId: vnet.properties.subnets[2].id
+    }
+  }
+}
+
+resource pythonJob 'Microsoft.App/jobs@2024-03-01' = {
+  name: containerJobName
+  location: location
+  properties: {
+    configuration: {
+      secrets: [
+        {
+          name: 'keyvaultname'
+          value: ''
+        }
+        {
+          name: 'tenantid'
+          value: tenant().tenantId
+        }
+        {
+          name: 'clientid'
+          value: containerAppUserManagedIdentity.properties.clientId
+        }
+      ]
+      replicaTimeout: 'PT1H'
+      triggerType: 'Manual'
+      registries: [
+        {
+          identity: containerAppUserManagedIdentity.id
+          server: acr.properties.loginServer
+        }
+      ]
+    }
+    environmentId: containerAppEnv.id
+    template: {
+      containers: [
+        {
+          name: 'python-job'
+          image: jobImageName
+          env: [
+            
+          ]
+        }
+      ]
     }
   }
 }

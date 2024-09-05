@@ -25,12 +25,20 @@ az deployment group create \
 # get deployment output
 acrName=$(az deployment group show --resource-group $resourceGroupName --name acr-deployment --query properties.outputs.acrName.value --output tsv)
 imageName=$acrName.azurecr.io/ai-search-api:$version
+jobImageName=$acrName.azurecr.io/ai-search-python-job:$version
 
 cd ../api/ProductSearchAPI
 az acr login -n $acrName
+
 docker build -t $imageName .
 docker push $imageName
+
+# docker build -t $jobImageName .
+# docker push $jobImageName
+
 cd ../../infra
+
+
 
 # deploy resources
 az deployment group create \
@@ -50,7 +58,8 @@ az deployment group create \
     --parameters systemPromptFileName='query.txt' \
     --parameters model='gpt-4' \
     --parameters storageContainerName='product-images' \
-    --parameters gpt4Key=$GPT4_KEY
+    --parameters gpt4Key=$GPT4_KEY \
+    --parameters jobImageName=$containerAppJobName
 
 # get deployment output
 backendFqdn=$(az deployment group show --resource-group $resourceGroupName --name main-deployment --query properties.outputs.containerAppFqdn.value --output tsv)
