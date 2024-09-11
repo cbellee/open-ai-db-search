@@ -58,9 +58,11 @@ namespace ProductSearchAPI
 
             var options = new ChatCompletionOptions
             {
-                Temperature = (float?)0.7,
+                Temperature = (float?)1.0,
                 FrequencyPenalty = 0,
                 PresencePenalty = 0,
+                MaxTokens = 256,
+                ChatCompletionsResponseFormat = ChatCompletionsResponseFormatJSON(),
             };
 
             var chatResponse = await chatClient.CompleteChatAsync(chatMessages, options);

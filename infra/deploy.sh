@@ -9,6 +9,7 @@ aiSearchIndexName='products-index'
 semanticConfigName='semantic-config'
 embeddingClientName='text-embedding-ada-002'
 partitionKey='/Id'
+clientIpAddress=$(curl ifconfig.me)
 
 source ./.env
 
@@ -33,11 +34,11 @@ az acr login -n $acrName
 docker build -t $imageName .
 docker push $imageName
 
-# cd <pyhon job Dockerfile location>
-# docker build -t $jobImageName .
-# docker push $jobImageName
+cd ../data
+docker build -t $jobImageName .
+docker push $jobImageName
 
-cd ../../infra
+cd ../infra
 
 # deploy resources
 az deployment group create \
@@ -54,11 +55,12 @@ az deployment group create \
     --parameters semanticConfigName=$semanticConfigName \
     --parameters embeddingClientName=$embeddingClientName \
     --parameters partitionKey=$partitionKey \
-    --parameters systemPromptFileName='query.txt' \
+    --parameters systemPromptFileName='system_prompt.txt' \
     --parameters model='gpt-4' \
     --parameters storageContainerName='product-images' \
     --parameters gpt4Key=$GPT4_KEY \
-    --parameters jobImageName=$containerAppJobName
+    --parameters jobImageName=$jobImageName \
+    --parameters clientIpAddress=$clientIpAddress
 
 # get deployment output
 backendFqdn=$(az deployment group show --resource-group $resourceGroupName --name main-deployment --query properties.outputs.containerAppFqdn.value --output tsv)

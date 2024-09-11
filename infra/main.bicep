@@ -15,11 +15,12 @@ param systemPromptFileName string
 param storageContainerName string
 param gpt4Key string
 param jobImageName string
-
+param clientIpAddress string
 param tags object = {
   environment: 'dev'
 }
 
+var cosmosDataContributorRoleDefinitionId = '00000000-0000-0000-0000-000000000002'
 var prefix = uniqueString(resourceGroup().id)
 var cosmosDbDatabaseName = 'catalogDb'
 var cosmosDbContainerName = 'products'
@@ -27,6 +28,7 @@ var apimPip = '${prefix}-apim-ip'
 var swaUmidName = '${prefix}-swa-umid'
 var containerAppUmidName = '${prefix}-container-app-umid'
 var containerAppName = '${prefix}-container-app'
+var aiSearchUmidName = '${prefix}-ai-search-umid'
 var apimName = '${prefix}-apim'
 var apimUmidName = '${prefix}-apim-umid'
 var containerAppEnvironmentName = '${prefix}-container-app-env'
@@ -37,7 +39,7 @@ var aiName = '${prefix}-ai'
 var openAiName = '${prefix}-openai'
 var swaName = '${prefix}-swa'
 var storageAccountName = '${prefix}stor'
-var containerJobName = '${prefix}-contaibner-job'
+var containerJobName = '${prefix}-container-job'
 
 resource apimUserManagedIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-07-31-preview' = {
   name: apimUmidName
@@ -53,6 +55,12 @@ resource containerAppUserManagedIdentity 'Microsoft.ManagedIdentity/userAssigned
   name: containerAppUmidName
   location: location
 }
+
+resource aiSearchUserManagedIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-07-31-preview' = {
+  name: aiSearchUmidName
+  location: location
+}
+
 
 resource acr 'Microsoft.ContainerRegistry/registries@2023-11-01-preview' existing = {
   name: acrName
@@ -92,6 +100,39 @@ resource acrPullRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
   properties: {
     principalId: containerAppUserManagedIdentity.properties.principalId
     roleDefinitionId: '/subscriptions/${subscription().subscriptionId}/providers/Microsoft.Authorization/roleDefinitions/7f951dda-4ed3-4680-a7ca-43fe172d538d'
+    principalType: 'ServicePrincipal'
+  }
+}
+
+// Allows running container jobs
+resource containerJobContributorRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(acr.id, containerAppUserManagedIdentity.id, 'containerJobContributorRole')
+  scope: pythonContainer
+  properties: {
+    principalId: containerAppUserManagedIdentity.properties.principalId
+    roleDefinitionId: '/subscriptions/${subscription().subscriptionId}/providers/Microsoft.Authorization/roleDefinitions/4e3d2b60-56ae-4dc6-a233-09c8e5a82e68'
+    principalType: 'ServicePrincipal'
+  }
+}
+
+// Allows managing CosmosDb
+resource cosmosDbOperatorRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(cosmosDbAccount.id, containerAppUserManagedIdentity.id, 'cosmosDbOperatorRole')
+  scope: cosmosDbAccount
+  properties: {
+    principalId: containerAppUserManagedIdentity.properties.principalId
+    roleDefinitionId: '/subscriptions/${subscription().subscriptionId}/providers/Microsoft.Authorization/roleDefinitions/230815da-be43-4aae-9cb4-875f7bd000aa'
+    principalType: 'ServicePrincipal'
+  }
+}
+
+// Allows managing CosmosDb
+resource cosmosDbAccountReaderRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(cosmosDbAccount.id, containerAppUserManagedIdentity.id, 'cosmosDbAccountReaderRole')
+  scope: cosmosDbAccount
+  properties: {
+    principalId: aiSearchUserManagedIdentity.properties.principalId
+    roleDefinitionId: '/subscriptions/${subscription().subscriptionId}/providers/Microsoft.Authorization/roleDefinitions/fbdf93bf-df7d-467e-a4d2-9458aa1360c8'
     principalType: 'ServicePrincipal'
   }
 }
@@ -257,26 +298,29 @@ resource containerAppEnv 'Microsoft.App/managedEnvironments@2024-03-01' = {
   }
 }
 
-resource pythonJob 'Microsoft.App/jobs@2024-03-01' = {
+resource pythonContainer 'Microsoft.App/jobs@2024-03-01' = {
   name: containerJobName
   location: location
+  identity: {
+    type: 'UserAssigned'
+    userAssignedIdentities: {
+      '${containerAppUserManagedIdentity.id}': {}
+    }
+  }
   properties: {
     configuration: {
+      manualTriggerConfig: {
+        parallelism: 1
+        replicaCompletionCount: 1
+      }
+      replicaRetryLimit: 1
       secrets: [
         {
-          name: 'keyvaultname'
-          value: ''
-        }
-        {
-          name: 'tenantid'
-          value: tenant().tenantId
-        }
-        {
-          name: 'clientid'
-          value: containerAppUserManagedIdentity.properties.clientId
+          name: 'cosmosdbcxnstring'
+          value: 'ResourceId=/subscriptions/${subscription().subscriptionId}/resourceGroups/${resourceGroup().name}/providers/Microsoft.DocumentDB/databaseAccounts/${cosmosDbAccount.name};Database=${database.name};IdentityAuthType=AccessToken'
         }
       ]
-      replicaTimeout: 'PT1H'
+      replicaTimeout: 300
       triggerType: 'Manual'
       registries: [
         {
@@ -292,11 +336,55 @@ resource pythonJob 'Microsoft.App/jobs@2024-03-01' = {
           name: 'python-job'
           image: jobImageName
           env: [
-            
+            {
+              name: 'AZURE_TENANT_ID'
+              value: tenant().tenantId
+            }
+            {
+              name: 'AZURE_CLIENT_ID'
+              value: containerAppUserManagedIdentity.properties.clientId
+            }
+            {
+              name: 'AZURE_SEARCH_ENDPOINT'
+              value: 'https://${aiSearch.name}.search.windows.net'
+            }
+            {
+              name: 'COSMOS_ENDPOINT'
+              value: cosmosDbAccount.properties.documentEndpoint
+            }
+            {
+              name: 'COSMOS_DATABASE'
+              value: database.name
+            }
+            {
+              name: 'COSMOS_DB_CONNECTION_STRING'
+              secretRef: 'cosmosdbcxnstring'
+            }
+            {
+              name: 'OPEN_AI_ENDPOINT'
+              value: openAi.properties.endpoint
+            }
           ]
         }
       ]
     }
+  }
+}
+
+resource runPythonJob 'Microsoft.Resources/deploymentScripts@2023-08-01' = {
+  name: 'runPythonJob'
+  location: location
+  kind: 'AzureCLI'
+  identity: {
+    type: 'UserAssigned'
+    userAssignedIdentities: {
+      '${containerAppUserManagedIdentity.id}': {}
+    }
+  }
+  properties: {
+    azCliVersion: '2.61.0'
+    retentionInterval: 'PT1H'
+    scriptContent: 'az containerapp job start --name ${pythonContainer.name} --resource-group ${resourceGroup().name}'
   }
 }
 
@@ -484,6 +572,7 @@ resource backendContainerApp 'Microsoft.App/containerApps@2024-03-01' = {
   }
 }
  */
+
 resource openAi 'Microsoft.CognitiveServices/accounts@2024-04-01-preview' existing = {
   name: openAiName
 }
@@ -613,18 +702,70 @@ resource swa_backend 'Microsoft.Web/staticSites/linkedBackends@2023-12-01' = {
   }
 }
  */
+
 resource aiSearch 'Microsoft.Search/searchServices@2024-06-01-preview' = {
   name: '${prefix}-search'
   location: location
+  identity: {
+    type: 'UserAssigned'
+    userAssignedIdentities: {
+      '${containerAppUserManagedIdentity.id}': {}
+    }
+  }
   sku: {
     name: 'standard'
   }
   tags: tags
   properties: {
+    disableLocalAuth: true
     semanticSearch: 'standard'
     networkRuleSet: {
       bypass: 'AzureServices'
     }
+  }
+}
+
+// Allows managing AI Search Services
+resource aiSearchServiceContributorRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(aiSearch.id, containerAppUserManagedIdentity.id, 'aiSearchServiceContributor')
+  scope: aiSearch
+  properties: {
+    principalId: containerAppUserManagedIdentity.properties.principalId
+    roleDefinitionId: '/subscriptions/${subscription().subscriptionId}/providers/Microsoft.Authorization/roleDefinitions/7ca78c08-252a-4471-8644-bb5ff32d4ba0'
+    principalType: 'ServicePrincipal'
+  }
+}
+
+// Allows managing AI Search Services
+resource aiSearchServiceDataContributorRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(aiSearch.id, containerAppUserManagedIdentity.id, 'aiSearchServiceDataContributor')
+  scope: aiSearch
+  properties: {
+    principalId: containerAppUserManagedIdentity.properties.principalId
+    roleDefinitionId: '/subscriptions/${subscription().subscriptionId}/providers/Microsoft.Authorization/roleDefinitions/8ebe5a00-799e-43f5-93ac-243d3dce84a7'
+    principalType: 'ServicePrincipal'
+  }
+}
+
+// Allows managing OpenAI Services
+resource cognitiveServicesOpenAIContributorRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(aiSearch.id, containerAppUserManagedIdentity.id, 'cognitiveServicesOpenAIContributorRole')
+  scope: aiSearch
+  properties: {
+    principalId: containerAppUserManagedIdentity.properties.principalId
+    roleDefinitionId: '/subscriptions/${subscription().subscriptionId}/providers/Microsoft.Authorization/roleDefinitions/a001fd3d-188f-4b5d-821b-7da978bf7442'
+    principalType: 'ServicePrincipal'
+  }
+}
+
+// Allows managing AI Search Services
+resource openAiDeveloperRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(aiSearch.id, containerAppUserManagedIdentity.id, 'openAiDeveloperRole')
+  scope: openAi
+  properties: {
+    principalId: aiSearchUserManagedIdentity.properties.principalId
+    roleDefinitionId: '/subscriptions/${subscription().subscriptionId}/providers/Microsoft.Authorization/roleDefinitions/64702f94-c441-49e6-a78b-ef80e0188fee'
+    principalType: 'ServicePrincipal'
   }
 }
 
@@ -633,6 +774,11 @@ resource cosmosDbAccount 'Microsoft.DocumentDB/databaseAccounts@2024-05-15' = {
   location: location
   tags: tags
   properties: {
+    ipRules: [
+      {
+        ipAddressOrRange: clientIpAddress
+      }
+    ]
     networkAclBypass: 'AzureServices'
     databaseAccountOfferType: 'Standard'
     locations: [
@@ -641,7 +787,7 @@ resource cosmosDbAccount 'Microsoft.DocumentDB/databaseAccounts@2024-05-15' = {
         isZoneRedundant: false
       }
     ]
-    publicNetworkAccess: 'Disabled'
+    publicNetworkAccess: 'Enabled'
     capabilities: []
   }
 }
@@ -671,6 +817,37 @@ resource container 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases/container
     }
   }
 }
+
+resource sqlRoleAssignment 'Microsoft.DocumentDB/databaseAccounts/sqlRoleAssignments@2023-04-15' = {
+  name: guid(
+    cosmosDataContributorRoleDefinitionId,
+    containerAppUserManagedIdentity.id,
+    cosmosDbAccount.id,
+    'sqlDbDataContributorRoleAssignment'
+  )
+  parent: cosmosDbAccount
+  properties: {
+    principalId: containerAppUserManagedIdentity.properties.principalId
+    roleDefinitionId: '/${subscription().id}/resourceGroups/${resourceGroup().name}/providers/Microsoft.DocumentDB/databaseAccounts/${cosmosDbAccount.name}/sqlRoleDefinitions/${cosmosDataContributorRoleDefinitionId}'
+    scope: cosmosDbAccount.id
+  }
+}
+
+resource aiSearchSqlRoleAssignment 'Microsoft.DocumentDB/databaseAccounts/sqlRoleAssignments@2023-04-15' = {
+  name: guid(
+    cosmosDataContributorRoleDefinitionId,
+    containerAppUserManagedIdentity.id,
+    cosmosDbAccount.id,
+    'aiSearchSqlRoleAssignment'
+  )
+  parent: cosmosDbAccount
+  properties: {
+    principalId: aiSearchUserManagedIdentity.properties.principalId
+    roleDefinitionId: '/${subscription().id}/resourceGroups/${resourceGroup().name}/providers/Microsoft.DocumentDB/databaseAccounts/${cosmosDbAccount.name}/sqlRoleDefinitions/${cosmosDataContributorRoleDefinitionId}'
+    scope: cosmosDbAccount.id
+  }
+}
+
 
 resource cosmosDbPrivateEndpoint 'Microsoft.Network/privateEndpoints@2024-01-01' = if (isPrivate) {
   name: cosmosDbPrivateEndpointName
