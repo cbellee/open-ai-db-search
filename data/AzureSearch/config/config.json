@@ -10,7 +10,7 @@
     },
     "cosmos-config":{
         "cosmos_db_name" : "catalogDb",
-        "cosmos_db_container_name" : "contosoProducts",
+        "cosmos_db_container_name" : "products",
         "cosmos_db_partition_key" : "/id"
     },
     "ai-search-config":{

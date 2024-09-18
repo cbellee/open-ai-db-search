@@ -13,14 +13,38 @@ param semanticConfigName string
 param model string
 param systemPromptFileName string
 param storageContainerName string
-param gpt4Key string
+param key string
 param jobImageName string
 param clientIpAddress string
+@allowed(
+[
+  'standard'
+  'standard2'
+  'standard3'
+  'standard3highcpu'
+  'standard3highmemory'
+  'free'
+  'basic'
+]
+)
+param aiSearchSku string = 'standard2'
+param fields string
+param openAiCustomSubDomainName string = 'cbellee-open-ai'
 param tags object = {
   environment: 'dev'
 }
 
 var cosmosDataContributorRoleDefinitionId = '00000000-0000-0000-0000-000000000002'
+var cosmosDbAccountReaderRoleDefinitionId = 'fbdf93bf-df7d-467e-a4d2-9458aa1360c8'
+var cosmosDbAccountOperatorRoleDefinitionId = '230815da-be43-4aae-9cb4-875f7bd000aa'
+var aiSearchServiceAccountContributorRoleDefinitionId = '7ca78c08-252a-4471-8644-bb5ff32d4ba0'
+var aiSearchServiceDataContributorRoleDefinitionId = '8ebe5a00-799e-43f5-93ac-243d3dce84a7'
+var azureAiDeveloperRoleDefinitionId = '64702f94-c441-49e6-a78b-ef80e0188fee'
+var containerJobContributorRoleDefinitionId = '4e3d2b60-56ae-4dc6-a233-09c8e5a82e68'
+var cognitiveServiceOpenAiContributorRoleDefinitionId = 'a001fd3d-188f-4b5d-821b-7da978bf7442'
+var acrPullRoleDefinitionId = '7f951dda-4ed3-4680-a7ca-43fe172d538d'
+var aiSearchServiceName = '${prefix}-search-s2'
+
 var prefix = uniqueString(resourceGroup().id)
 var cosmosDbDatabaseName = 'catalogDb'
 var cosmosDbContainerName = 'products'
@@ -61,7 +85,6 @@ resource aiSearchUserManagedIdentity 'Microsoft.ManagedIdentity/userAssignedIden
   location: location
 }
 
-
 resource acr 'Microsoft.ContainerRegistry/registries@2023-11-01-preview' existing = {
   name: acrName
 }
@@ -99,41 +122,173 @@ resource acrPullRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
   scope: acr
   properties: {
     principalId: containerAppUserManagedIdentity.properties.principalId
-    roleDefinitionId: '/subscriptions/${subscription().subscriptionId}/providers/Microsoft.Authorization/roleDefinitions/7f951dda-4ed3-4680-a7ca-43fe172d538d'
+    roleDefinitionId: '/subscriptions/${subscription().subscriptionId}/providers/Microsoft.Authorization/roleDefinitions/${acrPullRoleDefinitionId}'
     principalType: 'ServicePrincipal'
   }
 }
 
 // Allows running container jobs
-resource containerJobContributorRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(acr.id, containerAppUserManagedIdentity.id, 'containerJobContributorRole')
+resource appUmidContainerJobContributorRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(pythonContainer.id, containerAppUserManagedIdentity.id, 'appUmidContainerJobContributorRole')
   scope: pythonContainer
   properties: {
     principalId: containerAppUserManagedIdentity.properties.principalId
-    roleDefinitionId: '/subscriptions/${subscription().subscriptionId}/providers/Microsoft.Authorization/roleDefinitions/4e3d2b60-56ae-4dc6-a233-09c8e5a82e68'
+    roleDefinitionId: '/subscriptions/${subscription().subscriptionId}/providers/Microsoft.Authorization/roleDefinitions/${containerJobContributorRoleDefinitionId}'
     principalType: 'ServicePrincipal'
   }
 }
 
 // Allows managing CosmosDb
-resource cosmosDbOperatorRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(cosmosDbAccount.id, containerAppUserManagedIdentity.id, 'cosmosDbOperatorRole')
+resource appUmidCosmosDbAccountOperatorRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(cosmosDbAccount.id, containerAppUserManagedIdentity.id, 'appUmidCosmosDbAccountOperatorRole')
   scope: cosmosDbAccount
   properties: {
     principalId: containerAppUserManagedIdentity.properties.principalId
-    roleDefinitionId: '/subscriptions/${subscription().subscriptionId}/providers/Microsoft.Authorization/roleDefinitions/230815da-be43-4aae-9cb4-875f7bd000aa'
+    roleDefinitionId: '/subscriptions/${subscription().subscriptionId}/providers/Microsoft.Authorization/roleDefinitions/${cosmosDbAccountReaderRoleDefinitionId}'
     principalType: 'ServicePrincipal'
   }
 }
 
 // Allows managing CosmosDb
-resource cosmosDbAccountReaderRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(cosmosDbAccount.id, containerAppUserManagedIdentity.id, 'cosmosDbAccountReaderRole')
+/* resource aiSearchUmidCosmosDbAccountOperatorRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(cosmosDbAccount.id, 'aiSearchUmidCosmosDbAccountOperatorRole')
   scope: cosmosDbAccount
   properties: {
     principalId: aiSearchUserManagedIdentity.properties.principalId
-    roleDefinitionId: '/subscriptions/${subscription().subscriptionId}/providers/Microsoft.Authorization/roleDefinitions/fbdf93bf-df7d-467e-a4d2-9458aa1360c8'
+    roleDefinitionId: '/subscriptions/${subscription().subscriptionId}/providers/Microsoft.Authorization/roleDefinitions/${cosmosDbAccountOperatorRoleDefinitionId}'
     principalType: 'ServicePrincipal'
+  }
+}  */
+
+// Allows managing CosmosDb
+resource aiSearchMidCosmosDbOperatorRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(cosmosDbAccount.id, 'aiSearchMidCosmosDbAccountOperatorRole')
+  scope: cosmosDbAccount
+  properties: {
+    principalId: aiSearch.identity.principalId
+    roleDefinitionId: '/subscriptions/${subscription().subscriptionId}/providers/Microsoft.Authorization/roleDefinitions/${cosmosDbAccountOperatorRoleDefinitionId}'
+    principalType: 'ServicePrincipal'
+  }
+}
+
+// Allows managing CosmosDb
+resource aiSearchMidCosmosDbAccountReaderRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(cosmosDbAccount.id, 'aiSearchMidCosmosDbAccountReaderRole')
+  scope: cosmosDbAccount
+  properties: {
+    principalId: aiSearch.identity.principalId
+    roleDefinitionId: '/subscriptions/${subscription().subscriptionId}/providers/Microsoft.Authorization/roleDefinitions/${cosmosDbAccountReaderRoleDefinitionId}'
+    principalType: 'ServicePrincipal'
+  }
+}
+
+// Allows managing AI Search Services
+resource appUmidAiSearchServiceAccountContributorRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(aiSearch.id, containerAppUserManagedIdentity.id, 'appUmidAiSearchServiceAccountContributorRole')
+  scope: aiSearch
+  properties: {
+    principalId: containerAppUserManagedIdentity.properties.principalId
+    roleDefinitionId: '/subscriptions/${subscription().subscriptionId}/providers/Microsoft.Authorization/roleDefinitions/${aiSearchServiceAccountContributorRoleDefinitionId}'
+    principalType: 'ServicePrincipal'
+  }
+}
+
+// Allows managing AI Search Services Data
+resource appUmidAiSearchServiceDataContributorRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(aiSearch.id, containerAppUserManagedIdentity.id, 'appUmidAiSearchServiceDataContributorRole')
+  scope: aiSearch
+  properties: {
+    principalId: containerAppUserManagedIdentity.properties.principalId
+    roleDefinitionId: '/subscriptions/${subscription().subscriptionId}/providers/Microsoft.Authorization/roleDefinitions/${aiSearchServiceDataContributorRoleDefinitionId}'
+    principalType: 'ServicePrincipal'
+  }
+}
+
+// Allows managing AI Search Services
+resource aiSearchUmidAzureAiDeveloperRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(aiSearch.id, 'aiSearchUmidAzureAiDeveloperRole')
+  scope: openAi
+  properties: {
+    principalId: aiSearchUserManagedIdentity.properties.principalId
+    roleDefinitionId: '/subscriptions/${subscription().subscriptionId}/providers/Microsoft.Authorization/roleDefinitions/${azureAiDeveloperRoleDefinitionId}'
+    principalType: 'ServicePrincipal'
+  }
+}
+
+// Allows managing OpenAI Services
+resource aiSearchUmidCognitiveServicesOpenAIContributorRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(aiSearch.id, 'aiSearchUmidCognitiveServicesOpenAIContributorRole')
+  scope: aiSearch
+  properties: {
+    principalId: aiSearchUserManagedIdentity.properties.principalId
+    roleDefinitionId: '/subscriptions/${subscription().subscriptionId}/providers/Microsoft.Authorization/roleDefinitions/${cognitiveServiceOpenAiContributorRoleDefinitionId}'
+    principalType: 'ServicePrincipal'
+  }
+}
+
+// Allows managing OpenAI Services
+resource aiSearchMidCognitiveServicesOpenAIContributorRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(aiSearch.id, 'aiSearchMidCognitiveServicesOpenAIContributorRole')
+  scope: aiSearch
+  properties: {
+    principalId: aiSearch.identity.principalId
+    roleDefinitionId: '/subscriptions/${subscription().subscriptionId}/providers/Microsoft.Authorization/roleDefinitions/${cognitiveServiceOpenAiContributorRoleDefinitionId}'
+    principalType: 'ServicePrincipal'
+  }
+}
+
+resource aiSearchMidaiDeveloperRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(aiSearch.id, 'aiSearchMidaiDeveloperRole')
+  scope: aiSearch
+  properties: {
+    principalId: aiSearch.identity.principalId
+    roleDefinitionId: '/subscriptions/${subscription().subscriptionId}/providers/Microsoft.Authorization/roleDefinitions/${azureAiDeveloperRoleDefinitionId}'
+    principalType: 'ServicePrincipal'
+  }
+}
+
+// CosmosDB SQL role assignments
+
+resource appUmidCosmoDbDataContributorRoleAssignment 'Microsoft.DocumentDB/databaseAccounts/sqlRoleAssignments@2023-04-15' = {
+  name: guid(
+    cosmosDataContributorRoleDefinitionId,
+    containerAppUserManagedIdentity.id,
+    cosmosDbAccount.id,
+    'appUmidCosmoDbDataContributorRoleAssignment'
+  )
+  parent: cosmosDbAccount
+  properties: {
+    principalId: containerAppUserManagedIdentity.properties.principalId
+    roleDefinitionId: '/${subscription().id}/resourceGroups/${resourceGroup().name}/providers/Microsoft.DocumentDB/databaseAccounts/${cosmosDbAccount.name}/sqlRoleDefinitions/${cosmosDataContributorRoleDefinitionId}'
+    scope: cosmosDbAccount.id
+  }
+}
+
+resource aiSearchMidCosmoDbDataContributorRoleAssignment 'Microsoft.DocumentDB/databaseAccounts/sqlRoleAssignments@2023-04-15' = {
+  name: guid(
+    cosmosDataContributorRoleDefinitionId,
+    cosmosDbAccount.id,
+    'aiSearchMidCosmoDbDataContributorRoleAssignment'
+  )
+  parent: cosmosDbAccount
+  properties: {
+    principalId: aiSearch.identity.principalId
+    roleDefinitionId: '/${subscription().id}/resourceGroups/${resourceGroup().name}/providers/Microsoft.DocumentDB/databaseAccounts/${cosmosDbAccount.name}/sqlRoleDefinitions/${cosmosDataContributorRoleDefinitionId}'
+    scope: cosmosDbAccount.id
+  }
+}
+
+resource aiSearchUmidCosmoDbDataContributorRoleAssignment 'Microsoft.DocumentDB/databaseAccounts/sqlRoleAssignments@2023-04-15' = {
+  name: guid(
+    cosmosDataContributorRoleDefinitionId,
+    cosmosDbAccount.id,
+    'aiSearchUmidCosmoDbDataContributorRoleAssignment'
+  )
+  parent: cosmosDbAccount
+  properties: {
+    principalId: aiSearchUserManagedIdentity.properties.principalId
+    roleDefinitionId: '/${subscription().id}/resourceGroups/${resourceGroup().name}/providers/Microsoft.DocumentDB/databaseAccounts/${cosmosDbAccount.name}/sqlRoleDefinitions/${cosmosDataContributorRoleDefinitionId}'
+    scope: cosmosDbAccount.id
   }
 }
 
@@ -362,7 +517,11 @@ resource pythonContainer 'Microsoft.App/jobs@2024-03-01' = {
             }
             {
               name: 'OPEN_AI_ENDPOINT'
-              value: openAi.properties.endpoint
+              value: 'https://${openAi.name}.openai.azure.com'
+            }
+            {
+              name: 'USER_ASSIGNED_IDENTITY_RID'
+              value: aiSearchUserManagedIdentity.id
             }
           ]
         }
@@ -402,7 +561,7 @@ resource backendContainerApp 'Microsoft.App/containerApps@2024-03-01' = {
     configuration: {
       secrets: [
         {
-          name: 'endpoint'
+          name: 'aisearchendpoint'
           value: 'https://${aiSearch.name}.search.windows.net'
         }
         {
@@ -417,6 +576,10 @@ resource backendContainerApp 'Microsoft.App/containerApps@2024-03-01' = {
           name: 'semanticconfigname'
           value: semanticConfigName
         }
+        /* {
+          name: 'fields'
+          value: fields
+        } */
         {
           name: 'openaiconnection'
           value: 'Endpoint=${openAi.properties.endpoint};Key=${listKeys(openAi.id, openAi.apiVersion).key1}'
@@ -438,8 +601,8 @@ resource backendContainerApp 'Microsoft.App/containerApps@2024-03-01' = {
           value: model
         }
         {
-          name: 'gpt4key'
-          value: gpt4Key
+          name: 'gptkey'
+          value: key
         }
         {
           name: 'systempromptfilename'
@@ -499,51 +662,55 @@ resource backendContainerApp 'Microsoft.App/containerApps@2024-03-01' = {
               secretRef: 'clientid'
             }
             {
-              name: 'SearchClient__endpoint'
-              secretRef: 'endpoint'
+              name: 'AppConfiguration__AISearchClient__endpoint'
+              secretRef: 'aisearchendpoint'
             }
             {
-              name: 'SearchClient__credential__key'
+              name: 'AppConfiguration__AISearchClient__credential__key'
               secretRef: 'key'
             }
             {
-              name: 'SearchClient__indexName'
+              name: 'AppConfiguration__AISearchClient__indexName'
               secretRef: 'indexname'
             }
+            /*  {
+              name: 'AppConfiguration__AISearchClient__fields'
+              secretRef: 'fields'
+            } */
             {
               name: 'ConnectionStrings__OpenAI'
               secretRef: 'openaiconnection'
             }
             {
-              name: 'semanticConfigName'
+              name: 'AppConfiguration__AISearchClient__semanticConfigName'
               secretRef: 'semanticconfigname'
             }
             {
-              name: 'vectorFieldName'
+              name: 'AppConfiguration__AISearchClient__vectorFieldName'
               value: 'Description_V'
             }
             {
-              name: 'nearestNeighbours'
+              name: 'AppConfiguration__AISearchClient__nearestNeighbours'
               value: '3'
             }
             {
-              name: 'OpenAI__embeddingClientName'
+              name: 'AppConfiguration__OpenAIClient__embeddingClientName'
               secretRef: 'embeddingclient'
             }
             {
-              name: 'OpenAI__model'
+              name: 'AppConfiguration__OpenAIClient__model'
               secretRef: 'model'
             }
             {
-              name: 'OpenAI__gpt4Key'
-              secretRef: 'gpt4key'
+              name: 'AppConfiguration__OpenAIClient__key'
+              secretRef: 'gptkey'
             }
             {
-              name: 'OpenAI__systemPromptFileName'
+              name: 'AppConfiguration__OpenAIClient__systemPromptFileName'
               secretRef: 'systempromptfilename'
             }
             {
-              name: 'OpenAI__storageAccountUrl'
+              name: 'AppConfiguration__OpenAIClient__storageAccountUrl'
               secretRef: 'storageaccounturl'
             }
           ]
@@ -560,7 +727,7 @@ resource backendContainerApp 'Microsoft.App/containerApps@2024-03-01' = {
   ]
 }
 
-/* resource openAi 'Microsoft.CognitiveServices/accounts@2024-04-01-preview' = {
+resource openAi 'Microsoft.CognitiveServices/accounts@2024-04-01-preview' = {
   name: openAiName
   location: location
   sku: {
@@ -569,12 +736,8 @@ resource backendContainerApp 'Microsoft.App/containerApps@2024-03-01' = {
   kind: 'OpenAI'
   properties: {
     publicNetworkAccess: 'Enabled'
+    customSubDomainName: openAiCustomSubDomainName
   }
-}
- */
-
-resource openAi 'Microsoft.CognitiveServices/accounts@2024-04-01-preview' existing = {
-  name: openAiName
 }
 
 resource apimPublicIpAddress 'Microsoft.Network/publicIPAddresses@2024-01-01' = {
@@ -704,68 +867,24 @@ resource swa_backend 'Microsoft.Web/staticSites/linkedBackends@2023-12-01' = {
  */
 
 resource aiSearch 'Microsoft.Search/searchServices@2024-06-01-preview' = {
-  name: '${prefix}-search'
+  name: aiSearchServiceName
   location: location
   identity: {
-    type: 'UserAssigned'
+    type: 'UserAssigned, SystemAssigned'
     userAssignedIdentities: {
-      '${containerAppUserManagedIdentity.id}': {}
+      '${aiSearchUserManagedIdentity.id}': {}
     }
   }
   sku: {
-    name: 'standard'
+    name: aiSearchSku
   }
   tags: tags
   properties: {
-    disableLocalAuth: true
+    disableLocalAuth: false
     semanticSearch: 'standard'
     networkRuleSet: {
       bypass: 'AzureServices'
     }
-  }
-}
-
-// Allows managing AI Search Services
-resource aiSearchServiceContributorRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(aiSearch.id, containerAppUserManagedIdentity.id, 'aiSearchServiceContributor')
-  scope: aiSearch
-  properties: {
-    principalId: containerAppUserManagedIdentity.properties.principalId
-    roleDefinitionId: '/subscriptions/${subscription().subscriptionId}/providers/Microsoft.Authorization/roleDefinitions/7ca78c08-252a-4471-8644-bb5ff32d4ba0'
-    principalType: 'ServicePrincipal'
-  }
-}
-
-// Allows managing AI Search Services
-resource aiSearchServiceDataContributorRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(aiSearch.id, containerAppUserManagedIdentity.id, 'aiSearchServiceDataContributor')
-  scope: aiSearch
-  properties: {
-    principalId: containerAppUserManagedIdentity.properties.principalId
-    roleDefinitionId: '/subscriptions/${subscription().subscriptionId}/providers/Microsoft.Authorization/roleDefinitions/8ebe5a00-799e-43f5-93ac-243d3dce84a7'
-    principalType: 'ServicePrincipal'
-  }
-}
-
-// Allows managing OpenAI Services
-resource cognitiveServicesOpenAIContributorRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(aiSearch.id, containerAppUserManagedIdentity.id, 'cognitiveServicesOpenAIContributorRole')
-  scope: aiSearch
-  properties: {
-    principalId: containerAppUserManagedIdentity.properties.principalId
-    roleDefinitionId: '/subscriptions/${subscription().subscriptionId}/providers/Microsoft.Authorization/roleDefinitions/a001fd3d-188f-4b5d-821b-7da978bf7442'
-    principalType: 'ServicePrincipal'
-  }
-}
-
-// Allows managing AI Search Services
-resource openAiDeveloperRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(aiSearch.id, containerAppUserManagedIdentity.id, 'openAiDeveloperRole')
-  scope: openAi
-  properties: {
-    principalId: aiSearchUserManagedIdentity.properties.principalId
-    roleDefinitionId: '/subscriptions/${subscription().subscriptionId}/providers/Microsoft.Authorization/roleDefinitions/64702f94-c441-49e6-a78b-ef80e0188fee'
-    principalType: 'ServicePrincipal'
   }
 }
 
@@ -817,37 +936,6 @@ resource container 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases/container
     }
   }
 }
-
-resource sqlRoleAssignment 'Microsoft.DocumentDB/databaseAccounts/sqlRoleAssignments@2023-04-15' = {
-  name: guid(
-    cosmosDataContributorRoleDefinitionId,
-    containerAppUserManagedIdentity.id,
-    cosmosDbAccount.id,
-    'sqlDbDataContributorRoleAssignment'
-  )
-  parent: cosmosDbAccount
-  properties: {
-    principalId: containerAppUserManagedIdentity.properties.principalId
-    roleDefinitionId: '/${subscription().id}/resourceGroups/${resourceGroup().name}/providers/Microsoft.DocumentDB/databaseAccounts/${cosmosDbAccount.name}/sqlRoleDefinitions/${cosmosDataContributorRoleDefinitionId}'
-    scope: cosmosDbAccount.id
-  }
-}
-
-resource aiSearchSqlRoleAssignment 'Microsoft.DocumentDB/databaseAccounts/sqlRoleAssignments@2023-04-15' = {
-  name: guid(
-    cosmosDataContributorRoleDefinitionId,
-    containerAppUserManagedIdentity.id,
-    cosmosDbAccount.id,
-    'aiSearchSqlRoleAssignment'
-  )
-  parent: cosmosDbAccount
-  properties: {
-    principalId: aiSearchUserManagedIdentity.properties.principalId
-    roleDefinitionId: '/${subscription().id}/resourceGroups/${resourceGroup().name}/providers/Microsoft.DocumentDB/databaseAccounts/${cosmosDbAccount.name}/sqlRoleDefinitions/${cosmosDataContributorRoleDefinitionId}'
-    scope: cosmosDbAccount.id
-  }
-}
-
 
 resource cosmosDbPrivateEndpoint 'Microsoft.Network/privateEndpoints@2024-01-01' = if (isPrivate) {
   name: cosmosDbPrivateEndpointName

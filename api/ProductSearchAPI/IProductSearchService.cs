@@ -7,6 +7,7 @@ using Azure.AI.OpenAI;
 using OpenAI.Embeddings;
 using OpenAI.Chat;
 using System.Text.Json;
+using Azure.Identity;
 
 namespace ProductSearchAPI
 {
@@ -39,7 +40,7 @@ namespace ProductSearchAPI
                 EmbeddingClient embeddingClient = _openAIClient.GetEmbeddingClient(embeddingClientName);
                 Embedding embedding = embeddingClient.GenerateEmbedding(input);
                 return embedding.Vector;
-            } 
+            }
             catch (Exception ex)
             {
                 _logger.LogError(ex, $"Error generating embeddings for input: {input}", input);
@@ -62,7 +63,7 @@ namespace ProductSearchAPI
                 FrequencyPenalty = 0,
                 PresencePenalty = 0,
                 MaxTokens = 256,
-                ChatCompletionsResponseFormat = ChatCompletionsResponseFormatJSON(),
+                ResponseFormat = ChatResponseFormat.CreateJsonObjectFormat()
             };
 
             var chatResponse = await chatClient.CompleteChatAsync(chatMessages, options);
@@ -107,7 +108,9 @@ namespace ProductSearchAPI
                     AISearchFilter chatGptSearchFilter = JsonSerializer.Deserialize<AISearchFilter>(
                         chatGptResponse.Value.Content[0].Text
                         );
-                    filter = chatGptSearchFilter.Filter.Trim();
+                    if (chatGptSearchFilter.Filter != null) {
+                        filter = chatGptSearchFilter.Filter.Trim();
+                    }
                 }
                 catch (JsonException e)
                 {

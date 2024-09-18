@@ -4,7 +4,7 @@ subscription=$(az account show --query id --output tsv)
 entraIdUsername=$(az ad signed-in-user show --query userPrincipalName -o tsv)
 entraIdObjectId=$(az ad signed-in-user show --query id -o tsv)
 publisherName=$(echo $entraIdUsername | cut -d "@" -f 1)
-version=v0.0.9
+version=v0.0.13
 aiSearchIndexName='products-index'
 semanticConfigName='semantic-config'
 embeddingClientName='text-embedding-ada-002'
@@ -28,15 +28,13 @@ acrName=$(az deployment group show --resource-group $resourceGroupName --name ac
 imageName=$acrName.azurecr.io/ai-search-api:$version
 jobImageName=$acrName.azurecr.io/ai-search-python-job:$version
 
-cd ../api/ProductSearchAPI
 az acr login -n $acrName
 
-docker build -t $imageName .
-docker push $imageName
+cd ../api/ProductSearchAPI
+az acr build --platform=linux/amd64 -r $acrName -t $imageName .
 
-cd ../data
-docker build -t $jobImageName .
-docker push $jobImageName
+cd ../../data
+az acr build --platform=linux/amd64 -r $acrName -t $jobImageName .
 
 cd ../infra
 
@@ -56,11 +54,12 @@ az deployment group create \
     --parameters embeddingClientName=$embeddingClientName \
     --parameters partitionKey=$partitionKey \
     --parameters systemPromptFileName='system_prompt.txt' \
-    --parameters model='gpt-4' \
+    --parameters model='gpt-4o' \
     --parameters storageContainerName='product-images' \
-    --parameters gpt4Key=$GPT4_KEY \
+    --parameters key=$GPT4_KEY \
     --parameters jobImageName=$jobImageName \
-    --parameters clientIpAddress=$clientIpAddress
+    --parameters clientIpAddress=$clientIpAddress \
+    --parameters fields='Name,Description,Brand,Type'
 
 # get deployment output
 backendFqdn=$(az deployment group show --resource-group $resourceGroupName --name main-deployment --query properties.outputs.containerAppFqdn.value --output tsv)

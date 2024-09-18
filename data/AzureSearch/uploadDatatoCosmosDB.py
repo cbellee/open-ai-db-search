@@ -2,9 +2,11 @@ from azure.cosmos import CosmosClient, exceptions, PartitionKey
 from azure.identity import DefaultAzureCredential
 import os, json, sys
 import pandas as pd
-from typing import List, Dict , Union
+from typing import List, Dict
 
 if __name__ == "__main__":
+    print("Running 'AzureSearch/uploadDatatoCosmosDB.py'...")
+
     COSMOS_ENDPOINT = os.environ["COSMOS_ENDPOINT"]
     DATABASE_NAME = os.environ["COSMOS_DATABASE"]
     print(f"DATABASE_NAME: {DATABASE_NAME}")

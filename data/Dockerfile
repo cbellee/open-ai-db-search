@@ -5,13 +5,18 @@ FROM python:3.12.5-slim-bookworm
 WORKDIR /app
 
 # Copy the requirements file into the container
-COPY requirement.txt .
+COPY requirements.txt .
 
 # Install the Python dependencies
-RUN pip install --no-cache-dir -r requirement.txt
+RUN pip3 install --no-cache-dir -r requirements.txt
 
 # Copy the rest of the application code into the container, except .env file
 COPY . .
 
+RUN chmod +x ./entrypoint.sh
+RUN chmod +x ./AzureSearch/combinedScript.py
+
 # # Set the command to run the application
-CMD ["./entrypoint.sh"]
+# CMD ["./entrypoint.sh"]
+ENTRYPOINT python3 -v ./AzureSearch/combinedScript.py
+# CMD ["python", "./AzureSearch/combinedScript.py"]

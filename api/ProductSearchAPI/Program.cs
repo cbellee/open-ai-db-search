@@ -10,23 +10,8 @@ var builder = WebApplication.CreateBuilder(args);
 // NOTE: if the App won't start in VS, take a look at excluded ports list & change your default ports to outside of the ranges returned.
 // $ netsh interface ipv4 show excludedportrange protocol=tcp
 
-var configSection = builder.Configuration.GetSection("AppConfiguration");
-builder.Services.Configure<AppConfiguration>(configSection);
-
-//var aiSearchEndpoint = builder.Configuration.GetSection("SearchClient:endpoint").Value;
-//var aiSearchKey = builder.Configuration.GetSection("SearchClient:credential:key").Value;
-//var aiSearchIndexName = builder.Configuration.GetSection("SearchClient:indexName").Value;
-//var semanticConfigName = builder.Configuration.GetSection("SearchClient:semanticConfigName").Value;
-//var vectorFieldName = builder.Configuration.GetSection("SearchClient:vectorFieldName").Value;
-//int nearestNeighbours = builder.Configuration.GetValue<int>("SearchClient:nearestNeighbours");
-//string embeddingClientName = builder.Configuration.GetSection("OpenAI:embeddingClientName").Value;
-//string chatGptModelName = builder.Configuration.GetSection("OpenAI:model").Value;
-//string chatGptKey = builder.Configuration.GetSection("OpenAI:gpt4Key").Value;
-//string systemPromptFileName = builder.Configuration.GetSection("OpenAI:systemPromptFileName").Value;
-
-//List<string> fields = new List<string> { "Name", "Description", "Brand", "Type" };
-
-AzureKeyCredential credential = new AzureKeyCredential(aiSearchKey);
+var c = new AppConfiguration();
+builder.Configuration.GetSection("AppConfiguration").Bind(c);
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
@@ -38,8 +23,16 @@ builder.Services.AddProblemDetails();
 builder.Services.AddDatabaseDeveloperPageExceptionFilter();
 builder.Services.AddAzureClients(clients =>
 {
-    clients.AddSearchClient(new Uri(aiSearchEndpoint), aiSearchIndexName, credential);
-    clients.AddSearchIndexClient(new Uri(aiSearchEndpoint), credential);
+    clients.AddSearchClient(
+        new Uri(c.AISearchClient.Endpoint),
+        c.AISearchClient.IndexName,
+        new AzureKeyCredential(c.AISearchClient.Credential.Key)
+        );
+
+    clients.AddSearchIndexClient(new Uri(
+        c.AISearchClient.Endpoint),
+        new AzureKeyCredential(c.AISearchClient.Credential.Key)
+        );
 });
 
 builder.Services.AddCors(o => o.AddDefaultPolicy(builder =>
@@ -113,13 +106,13 @@ app.MapGet("/products", async Task<Results<Ok<List<Product>>, NotFound>> (
 {
     var products = await productService.SearchProducts(
          query,
-         semanticConfigName,
-         embeddingClientName,
-         vectorFieldName,
-         chatGptModelName,
-         nearestNeighbours,
-         systemPromptFileName,
-         fields
+         c.AISearchClient.SemanticConfigName,
+         c.OpenAIClient.EmbeddingClientName,
+         c.AISearchClient.VectorFieldName,
+         c.OpenAIClient.Model,
+         c.AISearchClient.NearestNeighbours,
+         c.OpenAIClient.SystemPromptFileName,
+         new List<string> { "Name", "Description", "Brand", "Type" }
      );
 
     if (products.Count <= 0)
