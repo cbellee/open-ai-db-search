@@ -13,10 +13,7 @@ RUN pip3 install --no-cache-dir -r requirements.txt
 # Copy the rest of the application code into the container, except .env file
 COPY . .
 
-RUN chmod +x ./entrypoint.sh
-RUN chmod +x ./AzureSearch/combinedScript.py
+RUN chmod +x ./AzureSearch/createIndex.py
 
 # # Set the command to run the application
-# CMD ["./entrypoint.sh"]
-ENTRYPOINT python3 -v ./AzureSearch/combinedScript.py
-# CMD ["python", "./AzureSearch/combinedScript.py"]
+ENTRYPOINT python ./AzureSearch/createIndex.py

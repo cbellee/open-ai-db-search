@@ -1,23 +1,21 @@
 param location string = 'australiaeast'
 param swaLocation string = 'eastasia'
-param publisherEmail string
-param publisherName string
 param addressPrefix string = '10.100.0.0/16'
-param isPrivate bool = true
+param isPrivate bool = false
 param imageName string
 param acrName string
 param embeddingClientName string
 param partitionKey string = '/Id'
 param aiSearchIndex string
 param semanticConfigName string
-param model string
+param chatGptDeploymentName string
 param systemPromptFileName string
 param storageContainerName string
-param key string
 param jobImageName string
+param openAiEmbeddingDeploymentName string
+param containerSpaJobImageName string
 param clientIpAddress string
-@allowed(
-[
+@allowed([
   'standard'
   'standard2'
   'standard3'
@@ -25,10 +23,9 @@ param clientIpAddress string
   'standard3highmemory'
   'free'
   'basic'
-]
-)
+])
 param aiSearchSku string = 'standard2'
-param fields string
+//param fields string
 param openAiCustomSubDomainName string = 'cbellee-open-ai'
 param tags object = {
   environment: 'dev'
@@ -43,20 +40,19 @@ var azureAiDeveloperRoleDefinitionId = '64702f94-c441-49e6-a78b-ef80e0188fee'
 var containerJobContributorRoleDefinitionId = '4e3d2b60-56ae-4dc6-a233-09c8e5a82e68'
 var cognitiveServiceOpenAiContributorRoleDefinitionId = 'a001fd3d-188f-4b5d-821b-7da978bf7442'
 var acrPullRoleDefinitionId = '7f951dda-4ed3-4680-a7ca-43fe172d538d'
+var storageDataContributorDefinitionId = 'ba92f5b4-2d11-453d-a403-e96b0029c9fe'
+var storageContributorDefinitionId = '17d1049b-9a84-46fb-8f53-869881c3d3ab'
 var aiSearchServiceName = '${prefix}-search-s2'
 
 var prefix = uniqueString(resourceGroup().id)
 var cosmosDbDatabaseName = 'catalogDb'
 var cosmosDbContainerName = 'products'
-var apimPip = '${prefix}-apim-ip'
 var swaUmidName = '${prefix}-swa-umid'
 var containerAppUmidName = '${prefix}-container-app-umid'
 var containerAppName = '${prefix}-container-app'
 var aiSearchUmidName = '${prefix}-ai-search-umid'
-var apimName = '${prefix}-apim'
 var apimUmidName = '${prefix}-apim-umid'
 var containerAppEnvironmentName = '${prefix}-container-app-env'
-var apimNsgName = '${prefix}-apim-nsg'
 var cosmosDbPrivateEndpointName = '${prefix}-cosmosdb-pe'
 var lawName = '${prefix}-law'
 var aiName = '${prefix}-ai'
@@ -64,6 +60,7 @@ var openAiName = '${prefix}-openai'
 var swaName = '${prefix}-swa'
 var storageAccountName = '${prefix}stor'
 var containerJobName = '${prefix}-container-job'
+var containerSpaJobName = '${prefix}-spa-job'
 
 resource apimUserManagedIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-07-31-preview' = {
   name: apimUmidName
@@ -138,13 +135,64 @@ resource appUmidContainerJobContributorRole 'Microsoft.Authorization/roleAssignm
   }
 }
 
+resource appUmidContainerSpaJobContributorRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(spaContainer.id, containerAppUserManagedIdentity.id, 'appUmidContainerSpaJobContributorRole')
+  scope: spaContainer
+  properties: {
+    principalId: containerAppUserManagedIdentity.properties.principalId
+    roleDefinitionId: '/subscriptions/${subscription().subscriptionId}/providers/Microsoft.Authorization/roleDefinitions/${containerJobContributorRoleDefinitionId}'
+    principalType: 'ServicePrincipal'
+  }
+}
+
+resource appUmidContainerSpaJobStorageDataContributorRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(spaContainer.id, containerAppUserManagedIdentity.id, 'appUmidContainerSpaJobStorageDataContributorRole')
+  scope: storage
+  properties: {
+    principalId: containerAppUserManagedIdentity.properties.principalId
+    roleDefinitionId: '/subscriptions/${subscription().subscriptionId}/providers/Microsoft.Authorization/roleDefinitions/${storageDataContributorDefinitionId}'
+    principalType: 'ServicePrincipal'
+  }
+}
+
+resource appUmidContainerSpaJobStorageContributorRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(spaContainer.id, containerAppUserManagedIdentity.id, 'appUmidContainerSpaJobStorageContributorRole')
+  scope: storage
+  properties: {
+    principalId: containerAppUserManagedIdentity.properties.principalId
+    roleDefinitionId: '/subscriptions/${subscription().subscriptionId}/providers/Microsoft.Authorization/roleDefinitions/${storageContributorDefinitionId}'
+    principalType: 'ServicePrincipal'
+  }
+}
+
 // Allows managing CosmosDb
+resource appUmidCosmosDbAccountReaderRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(cosmosDbAccount.id, containerAppUserManagedIdentity.id, 'appUmidCosmosDbAccountReaderRole')
+  scope: cosmosDbAccount
+  properties: {
+    principalId: containerAppUserManagedIdentity.properties.principalId
+    roleDefinitionId: '/subscriptions/${subscription().subscriptionId}/providers/Microsoft.Authorization/roleDefinitions/${cosmosDbAccountReaderRoleDefinitionId}'
+    principalType: 'ServicePrincipal'
+  }
+}
+
+// Allows managing CosmosDb
+resource appMidCosmosDbAccountReaderRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(cosmosDbAccount.id, containerAppUserManagedIdentity.id, 'appMidCosmosDbAccountReaderRole')
+  scope: cosmosDbAccount
+  properties: {
+    principalId: pythonContainer.identity.principalId
+    roleDefinitionId: '/subscriptions/${subscription().subscriptionId}/providers/Microsoft.Authorization/roleDefinitions/${cosmosDbAccountReaderRoleDefinitionId}'
+    principalType: 'ServicePrincipal'
+  }
+}
+
 resource appUmidCosmosDbAccountOperatorRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
   name: guid(cosmosDbAccount.id, containerAppUserManagedIdentity.id, 'appUmidCosmosDbAccountOperatorRole')
   scope: cosmosDbAccount
   properties: {
     principalId: containerAppUserManagedIdentity.properties.principalId
-    roleDefinitionId: '/subscriptions/${subscription().subscriptionId}/providers/Microsoft.Authorization/roleDefinitions/${cosmosDbAccountReaderRoleDefinitionId}'
+    roleDefinitionId: '/subscriptions/${subscription().subscriptionId}/providers/Microsoft.Authorization/roleDefinitions/${cosmosDbAccountOperatorRoleDefinitionId}'
     principalType: 'ServicePrincipal'
   }
 }
@@ -183,6 +231,16 @@ resource aiSearchMidCosmosDbAccountReaderRole 'Microsoft.Authorization/roleAssig
 }
 
 // Allows managing AI Search Services
+resource appMidAiSearchServiceAccountContributorRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(aiSearch.id, containerAppUserManagedIdentity.id, 'appMidAiSearchServiceAccountContributorRole')
+  scope: aiSearch
+  properties: {
+    principalId: pythonContainer.identity.principalId
+    roleDefinitionId: '/subscriptions/${subscription().subscriptionId}/providers/Microsoft.Authorization/roleDefinitions/${aiSearchServiceAccountContributorRoleDefinitionId}'
+    principalType: 'ServicePrincipal'
+  }
+}
+
 resource appUmidAiSearchServiceAccountContributorRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
   name: guid(aiSearch.id, containerAppUserManagedIdentity.id, 'appUmidAiSearchServiceAccountContributorRole')
   scope: aiSearch
@@ -215,10 +273,30 @@ resource aiSearchUmidAzureAiDeveloperRole 'Microsoft.Authorization/roleAssignmen
   }
 }
 
+resource containerAppUmidAzureAiDeveloperRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(aiSearch.id, 'containerAppUmidAzureAiDeveloperRole')
+  scope: openAi
+  properties: {
+    principalId: containerAppUserManagedIdentity.properties.principalId
+    roleDefinitionId: '/subscriptions/${subscription().subscriptionId}/providers/Microsoft.Authorization/roleDefinitions/${azureAiDeveloperRoleDefinitionId}'
+    principalType: 'ServicePrincipal'
+  }
+}
+
+resource containerAppUmidCognitiveServicesOpenAIContributorRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(aiSearch.id, 'containerAppUmidCognitiveServicesOpenAIContributorRole')
+  scope: aiSearch
+  properties: {
+    principalId: containerAppUserManagedIdentity.properties.principalId
+    roleDefinitionId: '/subscriptions/${subscription().subscriptionId}/providers/Microsoft.Authorization/roleDefinitions/${cognitiveServiceOpenAiContributorRoleDefinitionId}'
+    principalType: 'ServicePrincipal'
+  }
+}
+
 // Allows managing OpenAI Services
 resource aiSearchUmidCognitiveServicesOpenAIContributorRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(aiSearch.id, 'aiSearchUmidCognitiveServicesOpenAIContributorRole')
-  scope: aiSearch
+  name: guid(aiSearch.id, 'aiSearchUmidCognitiveServicesOpenAIContributorRole2')
+  scope: openAi
   properties: {
     principalId: aiSearchUserManagedIdentity.properties.principalId
     roleDefinitionId: '/subscriptions/${subscription().subscriptionId}/providers/Microsoft.Authorization/roleDefinitions/${cognitiveServiceOpenAiContributorRoleDefinitionId}'
@@ -292,79 +370,17 @@ resource aiSearchUmidCosmoDbDataContributorRoleAssignment 'Microsoft.DocumentDB/
   }
 }
 
-resource apimNsg 'Microsoft.Network/networkSecurityGroups@2024-01-01' = {
-  name: apimNsgName
-  location: location
-  tags: tags
+resource pythonJobhMidCosmoDbDataContributorRoleAssignment 'Microsoft.DocumentDB/databaseAccounts/sqlRoleAssignments@2023-04-15' = {
+  name: guid(
+    cosmosDataContributorRoleDefinitionId,
+    cosmosDbAccount.id,
+    'pythonJobhMidCosmoDbDataContributorRoleAssignment'
+  )
+  parent: cosmosDbAccount
   properties: {
-    securityRules: [
-      {
-        name: 'Allow_Apim_Gateway'
-        properties: {
-          priority: 100
-          direction: 'Inbound'
-          access: 'Allow'
-          protocol: 'Tcp'
-          sourcePortRange: '*'
-          destinationPortRange: '443'
-          sourceAddressPrefix: 'Internet'
-          destinationAddressPrefix: 'VirtualNetwork'
-        }
-      }
-      {
-        name: 'Allow_Apim_Mgmt'
-        properties: {
-          priority: 110
-          direction: 'Inbound'
-          access: 'Allow'
-          protocol: 'Tcp'
-          sourcePortRange: '*'
-          destinationPortRange: '3443'
-          sourceAddressPrefix: 'ApiManagement'
-          destinationAddressPrefix: 'VirtualNetwork'
-        }
-      }
-      {
-        name: 'Allow_Azure_Load_Balancer'
-        properties: {
-          priority: 120
-          direction: 'Inbound'
-          access: 'Allow'
-          protocol: 'Tcp'
-          sourcePortRange: '*'
-          destinationPortRange: '6390'
-          sourceAddressPrefix: 'AzureLoadBalancer'
-          destinationAddressPrefix: 'VirtualNetwork'
-        }
-      }
-      {
-        name: 'Dependency_on_Azure_SQL'
-        properties: {
-          protocol: 'Tcp'
-          sourcePortRange: '*'
-          destinationPortRange: '1433'
-          sourceAddressPrefix: 'VirtualNetwork'
-          destinationAddressPrefix: 'Sql'
-          access: 'Allow'
-          priority: 130
-          direction: 'Outbound'
-        }
-      }
-      {
-        name: 'Dependency_on_Azure_Storage'
-        properties: {
-          description: 'API Management service dependency on Azure blob and Azure table storage'
-          protocol: 'Tcp'
-          sourcePortRange: '*'
-          destinationPortRange: '443'
-          sourceAddressPrefix: 'VirtualNetwork'
-          destinationAddressPrefix: 'Storage'
-          access: 'Allow'
-          priority: 140
-          direction: 'Outbound'
-        }
-      }
-    ]
+    principalId: pythonContainer.identity.principalId
+    roleDefinitionId: '/${subscription().id}/resourceGroups/${resourceGroup().name}/providers/Microsoft.DocumentDB/databaseAccounts/${cosmosDbAccount.name}/sqlRoleDefinitions/${cosmosDataContributorRoleDefinitionId}'
+    scope: cosmosDbAccount.id
   }
 }
 
@@ -383,9 +399,9 @@ resource vnet 'Microsoft.Network/virtualNetworks@2024-01-01' = {
         name: 'apimSubnet'
         properties: {
           addressPrefix: cidrSubnet(cidrSubnet(addressPrefix, 22, 0), 24, 0)
-          networkSecurityGroup: {
+          /* networkSecurityGroup: {
             id: apimNsg.id
-          }
+          } */
           delegations: [
             {
               name: 'apimDelegation'
@@ -407,6 +423,12 @@ resource vnet 'Microsoft.Network/virtualNetworks@2024-01-01' = {
         name: 'containerAppSubnet'
         properties: {
           addressPrefix: cidrSubnet(cidrSubnet(addressPrefix, 22, 1), 23, 0)
+        }
+      }
+      {
+        name: 'mgmt-subnet'
+        properties: {
+          addressPrefix: cidrSubnet(cidrSubnet(addressPrefix, 22, 0), 24, 2)
         }
       }
     ]
@@ -453,11 +475,11 @@ resource containerAppEnv 'Microsoft.App/managedEnvironments@2024-03-01' = {
   }
 }
 
-resource pythonContainer 'Microsoft.App/jobs@2024-03-01' = {
-  name: containerJobName
+resource spaContainer 'Microsoft.App/jobs@2024-03-01' = {
+  name: containerSpaJobName
   location: location
   identity: {
-    type: 'UserAssigned'
+    type: 'UserAssigned, systemAssigned'
     userAssignedIdentities: {
       '${containerAppUserManagedIdentity.id}': {}
     }
@@ -469,12 +491,88 @@ resource pythonContainer 'Microsoft.App/jobs@2024-03-01' = {
         replicaCompletionCount: 1
       }
       replicaRetryLimit: 1
-      secrets: [
+      secrets: []
+      replicaTimeout: 600
+      triggerType: 'Manual'
+      registries: [
         {
-          name: 'cosmosdbcxnstring'
-          value: 'ResourceId=/subscriptions/${subscription().subscriptionId}/resourceGroups/${resourceGroup().name}/providers/Microsoft.DocumentDB/databaseAccounts/${cosmosDbAccount.name};Database=${database.name};IdentityAuthType=AccessToken'
+          identity: containerAppUserManagedIdentity.id
+          server: acr.properties.loginServer
         }
       ]
+    }
+    environmentId: containerAppEnv.id
+    template: {
+      containers: [
+        {
+          name: 'spa-job'
+          image: containerSpaJobImageName
+          env: [
+            {
+              name: 'AZURE_SUBSCRIPTION_ID'
+              value: subscription().subscriptionId
+            }
+            {
+              name: 'AZURE_CLIENT_ID'
+              value: containerAppUserManagedIdentity.properties.clientId
+            }
+            {
+              name: 'STORAGE_ACCOUNT_NAME'
+              value: storage.name
+            }
+            {
+              name: 'API_URI'
+              value: backendContainerApp.properties.configuration.ingress.fqdn
+            }
+            {
+              name: 'STORAGE_ACCOUNT_URI'
+              value: storage.properties.primaryEndpoints.blob
+            }
+            {
+              name: 'CONTAINER_NAME'
+              value: storageContainerName
+            }
+          ]
+        }
+      ]
+    }
+  }
+}
+
+resource runSpaJob 'Microsoft.Resources/deploymentScripts@2023-08-01' = {
+  name: 'runSpaJob'
+  location: location
+  kind: 'AzureCLI'
+  identity: {
+    type: 'UserAssigned'
+    userAssignedIdentities: {
+      '${containerAppUserManagedIdentity.id}': {}
+    }
+  }
+  properties: {
+    azCliVersion: '2.61.0'
+    retentionInterval: 'PT1H'
+    scriptContent: 'az containerapp job start --name ${spaContainer.name} --resource-group ${resourceGroup().name}'
+  }
+}
+
+resource pythonContainer 'Microsoft.App/jobs@2024-03-01' = {
+  name: containerJobName
+  location: location
+  identity: {
+    type: 'UserAssigned, systemAssigned'
+    userAssignedIdentities: {
+      '${containerAppUserManagedIdentity.id}': {}
+    }
+  }
+  properties: {
+    configuration: {
+      manualTriggerConfig: {
+        parallelism: 1
+        replicaCompletionCount: 1
+      }
+      replicaRetryLimit: 1
+      secrets: []
       replicaTimeout: 300
       triggerType: 'Manual'
       registries: [
@@ -492,14 +590,6 @@ resource pythonContainer 'Microsoft.App/jobs@2024-03-01' = {
           image: jobImageName
           env: [
             {
-              name: 'AZURE_TENANT_ID'
-              value: tenant().tenantId
-            }
-            {
-              name: 'AZURE_CLIENT_ID'
-              value: containerAppUserManagedIdentity.properties.clientId
-            }
-            {
               name: 'AZURE_SEARCH_ENDPOINT'
               value: 'https://${aiSearch.name}.search.windows.net'
             }
@@ -513,15 +603,19 @@ resource pythonContainer 'Microsoft.App/jobs@2024-03-01' = {
             }
             {
               name: 'COSMOS_DB_CONNECTION_STRING'
-              secretRef: 'cosmosdbcxnstring'
+              value: 'ResourceId=/subscriptions/${subscription().subscriptionId}/resourceGroups/${resourceGroup().name}/providers/Microsoft.DocumentDB/databaseAccounts/${cosmosDbAccount.name};Database=${database.name};IdentityAuthType=AccessToken'
             }
             {
               name: 'OPEN_AI_ENDPOINT'
-              value: 'https://${openAi.name}.openai.azure.com'
+              value: openAi.properties.endpoint
             }
             {
               name: 'USER_ASSIGNED_IDENTITY_RID'
               value: aiSearchUserManagedIdentity.id
+            }
+            {
+              name: 'OPEN_AI_EMBEDDING_DEPLOYMENT_NAME'
+              value: openAiEmbeddingDeploymentName
             }
           ]
         }
@@ -559,60 +653,7 @@ resource backendContainerApp 'Microsoft.App/containerApps@2024-03-01' = {
   tags: tags
   properties: {
     configuration: {
-      secrets: [
-        {
-          name: 'aisearchendpoint'
-          value: 'https://${aiSearch.name}.search.windows.net'
-        }
-        {
-          name: 'key'
-          value: aiSearch.listQueryKeys().value[0].key
-        }
-        {
-          name: 'indexname'
-          value: aiSearchIndex
-        }
-        {
-          name: 'semanticconfigname'
-          value: semanticConfigName
-        }
-        /* {
-          name: 'fields'
-          value: fields
-        } */
-        {
-          name: 'openaiconnection'
-          value: 'Endpoint=${openAi.properties.endpoint};Key=${listKeys(openAi.id, openAi.apiVersion).key1}'
-        }
-        {
-          name: 'aikey'
-          value: appInsights.properties.InstrumentationKey
-        }
-        {
-          name: 'clientid'
-          value: containerAppUserManagedIdentity.properties.clientId
-        }
-        {
-          name: 'embeddingclient'
-          value: embeddingClientName
-        }
-        {
-          name: 'model'
-          value: model
-        }
-        {
-          name: 'gptkey'
-          value: key
-        }
-        {
-          name: 'systempromptfilename'
-          value: systemPromptFileName
-        }
-        {
-          name: 'storageaccounturl'
-          value: '${storage.properties.primaryEndpoints.blob}${storageContainerName}/'
-        }
-      ]
+      secrets: []
       registries: [
         {
           identity: containerAppUserManagedIdentity.id
@@ -654,40 +695,32 @@ resource backendContainerApp 'Microsoft.App/containerApps@2024-03-01' = {
           }
           env: [
             {
-              name: 'APPINSIGHTS_INSTRUMENTATIONKEY'
-              secretRef: 'aikey'
-            }
-            {
               name: 'AZURE_CLIENT_ID'
-              secretRef: 'clientid'
+              value: containerAppUserManagedIdentity.properties.clientId
             }
             {
               name: 'AppConfiguration__AISearchClient__endpoint'
-              secretRef: 'aisearchendpoint'
-            }
-            {
-              name: 'AppConfiguration__AISearchClient__credential__key'
-              secretRef: 'key'
+              value: 'https://${aiSearch.name}.search.windows.net'
             }
             {
               name: 'AppConfiguration__AISearchClient__indexName'
-              secretRef: 'indexname'
+              value: aiSearchIndex
             }
-            /*  {
+            {
               name: 'AppConfiguration__AISearchClient__fields'
-              secretRef: 'fields'
-            } */
+              value: '["id", "name", "description", "price", "category"]'
+            }
             {
               name: 'ConnectionStrings__OpenAI'
-              secretRef: 'openaiconnection'
+              value: openAi.properties.endpoint
             }
             {
               name: 'AppConfiguration__AISearchClient__semanticConfigName'
-              secretRef: 'semanticconfigname'
+              value: semanticConfigName
             }
             {
-              name: 'AppConfiguration__AISearchClient__vectorFieldName'
-              value: 'Description_V'
+              name: 'AppConfiguration__AISearchClient__vectorFieldNames'
+              value: '["description_vectorized"]'
             }
             {
               name: 'AppConfiguration__AISearchClient__nearestNeighbours'
@@ -695,23 +728,19 @@ resource backendContainerApp 'Microsoft.App/containerApps@2024-03-01' = {
             }
             {
               name: 'AppConfiguration__OpenAIClient__embeddingClientName'
-              secretRef: 'embeddingclient'
+              value: embeddingClientName
             }
             {
-              name: 'AppConfiguration__OpenAIClient__model'
-              secretRef: 'model'
-            }
-            {
-              name: 'AppConfiguration__OpenAIClient__key'
-              secretRef: 'gptkey'
+              name: 'AppConfiguration__OpenAIClient__chatGptDeploymentName'
+              value: chatGptDeploymentName
             }
             {
               name: 'AppConfiguration__OpenAIClient__systemPromptFileName'
-              secretRef: 'systempromptfilename'
+              value: systemPromptFileName
             }
             {
               name: 'AppConfiguration__OpenAIClient__storageAccountUrl'
-              secretRef: 'storageaccounturl'
+              value: '${storage.properties.primaryEndpoints.blob}${storageContainerName}/'
             }
           ]
         }
@@ -735,84 +764,13 @@ resource openAi 'Microsoft.CognitiveServices/accounts@2024-04-01-preview' = {
   }
   kind: 'OpenAI'
   properties: {
-    publicNetworkAccess: 'Enabled'
+    publicNetworkAccess: isPrivate ? 'Disabled' : 'Enabled'
     customSubDomainName: openAiCustomSubDomainName
-  }
-}
-
-resource apimPublicIpAddress 'Microsoft.Network/publicIPAddresses@2024-01-01' = {
-  name: apimPip
-  location: location
-  tags: tags
-  sku: {
-    name: 'Standard'
-    tier: 'Regional'
-  }
-  properties: {
-    publicIPAllocationMethod: 'Static'
-    publicIPAddressVersion: 'IPv4'
-    dnsSettings: {
-      domainNameLabel: 'apim${prefix}'
+    disableLocalAuth: true
+    networkAcls: {
+      bypass: 'AzureServices'
+      defaultAction: 'Allow'
     }
-  }
-}
-
-resource apim 'Microsoft.ApiManagement/service@2023-09-01-preview' = {
-  name: apimName
-  location: location
-  tags: tags
-  identity: {
-    type: 'UserAssigned'
-    userAssignedIdentities: {
-      '${apimUserManagedIdentity.id}': {}
-    }
-  }
-  sku: {
-    name: 'Standardv2'
-    capacity: 1
-  }
-  properties: {
-    customProperties: {
-      'Microsoft.WindowsAzure.ApiManagement.Gateway.Security.Ciphers.TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA': 'false'
-      'Microsoft.WindowsAzure.ApiManagement.Gateway.Security.Ciphers.TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA': 'false'
-      'Microsoft.WindowsAzure.ApiManagement.Gateway.Security.Ciphers.TLS_RSA_WITH_AES_128_GCM_SHA256': 'false'
-      'Microsoft.WindowsAzure.ApiManagement.Gateway.Security.Ciphers.TLS_RSA_WITH_AES_256_CBC_SHA256': 'false'
-      'Microsoft.WindowsAzure.ApiManagement.Gateway.Security.Ciphers.TLS_RSA_WITH_AES_128_CBC_SHA256': 'false'
-      'Microsoft.WindowsAzure.ApiManagement.Gateway.Security.Ciphers.TLS_RSA_WITH_AES_256_CBC_SHA': 'false'
-      'Microsoft.WindowsAzure.ApiManagement.Gateway.Security.Ciphers.TLS_RSA_WITH_AES_128_CBC_SHA': 'false'
-      'Microsoft.WindowsAzure.ApiManagement.Gateway.Security.Ciphers.TripleDes168': 'false'
-      'Microsoft.WindowsAzure.ApiManagement.Gateway.Security.Protocols.Tls10': 'false'
-      'Microsoft.WindowsAzure.ApiManagement.Gateway.Security.Protocols.Tls11': 'false'
-      'Microsoft.WindowsAzure.ApiManagement.Gateway.Security.Protocols.Ssl30': 'false'
-      'Microsoft.WindowsAzure.ApiManagement.Gateway.Security.Backend.Protocols.Tls10': 'false'
-      'Microsoft.WindowsAzure.ApiManagement.Gateway.Security.Backend.Protocols.Tls11': 'false'
-      'Microsoft.WindowsAzure.ApiManagement.Gateway.Security.Backend.Protocols.Ssl30': 'false'
-      'Microsoft.WindowsAzure.ApiManagement.Gateway.Protocols.Server.Http2': 'false'
-    }
-    publisherEmail: publisherEmail
-    publisherName: publisherName
-    publicIpAddressId: apimPublicIpAddress.id
-    publicNetworkAccess: 'Enabled'
-    virtualNetworkType: 'External'
-    virtualNetworkConfiguration: {
-      subnetResourceId: vnet.properties.subnets[0].id
-    }
-  }
-}
-
-resource api 'Microsoft.ApiManagement/service/apis@2023-09-01-preview' = {
-  parent: apim
-  name: 'api'
-  properties: {
-    path: '/search-api'
-    apiType: 'http'
-    displayName: 'search-api'
-    type: 'http'
-    subscriptionRequired: false
-    protocols: [
-      'https'
-    ]
-    serviceUrl: 'https://${backendContainerApp.properties.configuration.ingress.fqdn}'
   }
 }
 
@@ -833,38 +791,12 @@ resource swa 'Microsoft.Web/staticSites@2023-12-01' = {
     tier: 'Standard'
   }
   properties: {
-    //repositoryUrl: repoUrl //'https://github.com/cbellee/open-ai-db-search'
-    //branch: repoBranch
     stagingEnvironmentPolicy: 'Enabled'
     allowConfigFileUpdates: true
     provider: 'Other'
     enterpriseGradeCdnStatus: 'Disabled'
-    //repositoryToken: gitHubToken
-    //buildProperties: {
-    //  outputLocation: '/dist'
-    //  appLocation: '/spa'
-    //apiLocation: '/api'
-    //}
   }
 }
-
-/* resource swa_auth 'Microsoft.Web/staticSites/basicAuth@2023-12-01' = {
-  parent: swa
-  name: 'default'
-  properties: {
-    applicableEnvironmentsMode: 'SpecifiedEnvironments'
-  }
-}
-
-resource swa_backend 'Microsoft.Web/staticSites/linkedBackends@2023-12-01' = {
-  parent: swa
-  name: 'api-backend'
-  properties: {
-    backendResourceId: apim.id
-    region: location
-  }
-}
- */
 
 resource aiSearch 'Microsoft.Search/searchServices@2024-06-01-preview' = {
   name: aiSearchServiceName
@@ -880,11 +812,12 @@ resource aiSearch 'Microsoft.Search/searchServices@2024-06-01-preview' = {
   }
   tags: tags
   properties: {
-    disableLocalAuth: false
+    disableLocalAuth: true
+    publicNetworkAccess: isPrivate ? 'Disabled' : 'Enabled'
     semanticSearch: 'standard'
-    networkRuleSet: {
+    /* networkRuleSet: {
       bypass: 'AzureServices'
-    }
+    } */
   }
 }
 
@@ -893,12 +826,7 @@ resource cosmosDbAccount 'Microsoft.DocumentDB/databaseAccounts@2024-05-15' = {
   location: location
   tags: tags
   properties: {
-    ipRules: [
-      {
-        ipAddressOrRange: clientIpAddress
-      }
-    ]
-    networkAclBypass: 'AzureServices'
+    networkAclBypass: 'None'
     databaseAccountOfferType: 'Standard'
     locations: [
       {
@@ -906,7 +834,7 @@ resource cosmosDbAccount 'Microsoft.DocumentDB/databaseAccounts@2024-05-15' = {
         isZoneRedundant: false
       }
     ]
-    publicNetworkAccess: 'Enabled'
+    publicNetworkAccess: isPrivate ? 'Disabled' : 'Enabled'
     capabilities: []
   }
 }
@@ -1012,7 +940,6 @@ resource cosmosDbPrivateDnsZoneLink 'Microsoft.Network/privateDnsZones/virtualNe
 
 output swaUmidName string = swaUserManagedIdentity.name
 output swaName string = swa.name
-output apimName string = apim.name
 output containerAppName string = backendContainerApp.name
 output containerAppFqdn string = backendContainerApp.properties.configuration.ingress.fqdn
 output storageAccountName string = storage.name

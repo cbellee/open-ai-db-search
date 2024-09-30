@@ -1,13 +1,5 @@
 
 {
-    "key-vault-config": {
-        "environment-details"  :{
-            "secret_AZURE_SEARCH_SERVICE_ENDPOINT" : "AZURE-SEARCH-SERVICE-ENDPOINT",
-            "secret_COSMOS_DB_CONNECTION_STRING" : "AZURE-COSMOSDB-RESOURCE-ID-CONNECTION-STRING",
-            "secret_open_ai_endpoint" : "AZURE-OPENAI-ENDPOINT",
-            "secret_COSMOS_ENDPOINT" : "COSMOS-ENDPOINT"
-        }
-    },
     "cosmos-config":{
         "cosmos_db_name" : "catalogDb",
         "cosmos_db_container_name" : "products",
@@ -25,17 +17,18 @@
                 {"field": "price","type" :"double"},
                 {"field": "category","type" :"string"},
                 {"field": "brand","type" :"string"},
+                {"field": "image","type" :"string"},
                 {"field": "description","type" :"string"},
                 {"field": "description_vectorized","type" :"vector"},
-                {"field": "brand_vectorized","type" :"vector"}
+                {"field": "isDeleted","type" :"boolean"}
             ],
             "key_field" : "id",
-            "retrievable_fields" : ["id","name","price","category","brand","description"],
-            "filterable_fields" : ["id","name","price","category","brand","description"],
-            "sortable_fields" : ["id","price"],
-            "facetable_fields" : ["name","price","category","brand","description"],
-            "searchable_fields" : ["name","description", "description_vectorized", "brand_vectorized"],
-            "vector_fields" : ["description_vectorized", "brand_vectorized"],
+            "retrievable_fields" : ["id","name","category","description","price","image","isDeleted","description_vectorized"],
+            "filterable_fields" : ["name","category","brand","price"],
+            "sortable_fields" : ["price"],
+            "facetable_fields" : ["category","brand"],
+            "searchable_fields" : ["name","description","category","description_vectorized"],
+            "vector_fields" : ["description_vectorized"],
             "semantic_configurations": {
                 "name": "product-semantic-config",
                 "isEnabled": true,
@@ -51,13 +44,7 @@
                     "name" : "skillset-contoso-openai-embedding_description",
                     "input-column" : "/document/description",
                     "output-column" : "description_vectorized"
-                },
-                {                
-                    "name" : "skillset-contoso-openai-embedding_brand",
-                    "input-column" : "/document/brand",
-                    "output-column" : "brand_vectorized"
                 }
-
             ]
         },
         "search-indexer-config":{
@@ -65,8 +52,7 @@
         }
     },
     "open_ai_config" : {
-        "embedding_deployment_name" : "text_embedding_model",
+        "embedding_deployment_name" : "text-embedding-ada-002",
         "embedding_model_name": "text-embedding-ada-002"
     }
-
 }

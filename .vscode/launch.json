@@ -2,11 +2,17 @@
   "version": "0.2.0",
   "configurations": [
     {
+      "name": "C#: ProductSearchAPI Debug",
+      "type": "dotnet",
+      "request": "launch",
+      "projectPath": "${workspaceFolder}/src/api/ProductSearchAPI/ProductSearchAPI.csproj"
+    },
+    {
       "name": "Launch Edge",
       "request": "launch",
       "type": "msedge",
       "url": "http://localhost:5173",
-      "webRoot": "${workspaceFolder}/spa"
+      "webRoot": "${workspaceFolder}/api"
     },
     {
       "name": "Attach to .NET Functions",
