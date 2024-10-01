@@ -4,7 +4,7 @@ subscription=$(az account show --query id --output tsv)
 entraIdUsername=$(az ad signed-in-user show --query userPrincipalName -o tsv)
 entraIdObjectId=$(az ad signed-in-user show --query id -o tsv)
 publisherName=$(echo $entraIdUsername | cut -d "@" -f 1)
-version=v0.0.19
+version=v0.0.20
 aiSearchIndexName='contoso-product-index'
 semanticConfigName='product-semantic-config'
 embeddingClientName='text-embedding-ada-002'
@@ -31,19 +31,31 @@ spaJobImageName=$acrName.azurecr.io/ai-search-spa-job:$version
 
 az acr login -n $acrName
 
+# build & push api image
 cd ../src/api/ProductSearchAPI
 az acr build --platform=linux/amd64 -r $acrName -t $imageName .
+
+# re-tag & upload to dockerHub
+docker pull $imageName
 docker tag $imageName belstarr/ai-search-api:$version
 docker push belstarr/ai-search-api:$version
 
+# build & push job image
 cd ../../../data
 az acr build --platform=linux/amd64 -r $acrName -t $jobImageName .
-docker tag $imageName belstarr/ai-search-python-job:$version
+
+# re-tag & upload to dockerHub
+docker pull $jobImageName
+docker tag $jobImageName belstarr/ai-search-python-job:$version
 docker push belstarr/ai-search-python-job:$version
 
+# build & push spa job image
 cd ../src/spa
 az acr build --platform=linux/amd64 -r $acrName -t $spaJobImageName .
-docker tag $imageName belstarr/ai-search-spa-job:$version
+
+# re-tag & upload to dockerHub
+docker pull $spaJobImageName
+docker tag $spaJobImageName belstarr/ai-search-spa-job:$version
 docker push belstarr/ai-search-spa-job:$version
 
 cd ../../infra

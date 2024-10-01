@@ -43,7 +43,7 @@ namespace ProductSearchAPI
                 Temperature = (float?)1.0,
                 FrequencyPenalty = 0,
                 PresencePenalty = 0,
-                MaxTokens = 256,
+                //MaxTokens = 256,
                 ResponseFormat = ChatResponseFormat.CreateJsonObjectFormat()
             };
 

@@ -14,7 +14,7 @@ param storageContainerName string
 param jobImageName string
 param openAiEmbeddingDeploymentName string
 param containerSpaJobImageName string
-param clientIpAddress string
+
 @allowed([
   'standard'
   'standard2'
@@ -25,7 +25,7 @@ param clientIpAddress string
   'basic'
 ])
 param aiSearchSku string = 'standard2'
-//param fields string
+
 param openAiCustomSubDomainName string = 'cbellee-open-ai'
 param tags object = {
   environment: 'dev'
@@ -196,17 +196,6 @@ resource appUmidCosmosDbAccountOperatorRole 'Microsoft.Authorization/roleAssignm
     principalType: 'ServicePrincipal'
   }
 }
-
-// Allows managing CosmosDb
-/* resource aiSearchUmidCosmosDbAccountOperatorRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(cosmosDbAccount.id, 'aiSearchUmidCosmosDbAccountOperatorRole')
-  scope: cosmosDbAccount
-  properties: {
-    principalId: aiSearchUserManagedIdentity.properties.principalId
-    roleDefinitionId: '/subscriptions/${subscription().subscriptionId}/providers/Microsoft.Authorization/roleDefinitions/${cosmosDbAccountOperatorRoleDefinitionId}'
-    principalType: 'ServicePrincipal'
-  }
-}  */
 
 // Allows managing CosmosDb
 resource aiSearchMidCosmosDbOperatorRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
@@ -399,9 +388,6 @@ resource vnet 'Microsoft.Network/virtualNetworks@2024-01-01' = {
         name: 'apimSubnet'
         properties: {
           addressPrefix: cidrSubnet(cidrSubnet(addressPrefix, 22, 0), 24, 0)
-          /* networkSecurityGroup: {
-            id: apimNsg.id
-          } */
           delegations: [
             {
               name: 'apimDelegation'
@@ -711,7 +697,7 @@ resource backendContainerApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: '["id", "name", "description", "price", "category"]'
             }
             {
-              name: 'ConnectionStrings__OpenAI'
+              name: 'AppConfiguration__OpenAIClient__endpoint'
               value: openAi.properties.endpoint
             }
             {

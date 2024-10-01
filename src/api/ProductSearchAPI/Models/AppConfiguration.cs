@@ -20,7 +20,8 @@ public class AISearchClient
 
 public class OpenAIClient
 {
-    public required string ChatGptDeploymentName { get; set; }
-    public required string EmbeddingClientName { get; set; }
-    public required string SystemPromptFileName { get; set; }
+    public required string Deployment { get; set; }
+    public required string EmbeddingClient { get; set; }
+    public required string SystemPromptFile { get; set; }
+    public required string Endpoint { get; set; }
 }
