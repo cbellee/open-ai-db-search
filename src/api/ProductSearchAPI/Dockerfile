@@ -9,6 +9,7 @@ WORKDIR /src
 COPY ["ProductSearchAPI.csproj", "."]
 RUN dotnet restore "./ProductSearchAPI.csproj"
 COPY . .
+
 WORKDIR "/src/."
 RUN dotnet build "./ProductSearchAPI.csproj" -c $BUILD_CONFIGURATION -o /app/build
 

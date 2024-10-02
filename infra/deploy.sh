@@ -77,7 +77,6 @@ az deployment group create \
     --parameters chatGptDeploymentName='gpt-4o' \
     --parameters storageContainerName='product-images' \
     --parameters jobImageName=$jobImageName \
-    --parameters clientIpAddress=$clientIpAddress \
     --parameters openAiEmbeddingDeploymentName=$embeddingDeploymentName \
     --parameters containerSpaJobImageName=$spaJobImageName
 

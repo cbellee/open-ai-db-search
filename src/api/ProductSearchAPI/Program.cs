@@ -1,13 +1,11 @@
 using ProductSearchAPI;
 using Microsoft.Extensions.Azure;
 using Microsoft.AspNetCore.Mvc;
-using Azure.Search.Documents.Indexes.Models;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Azure.Identity;
 using Azure.Search.Documents;
 using Azure.Search.Documents.Indexes;
 using System.Text.Json;
-using OpenAI;
 
 var builder = WebApplication.CreateBuilder(args);
 var config = new AppConfiguration();
@@ -15,7 +13,6 @@ var config = new AppConfiguration();
 builder.Configuration.GetSection("AppConfiguration").Bind(config);
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
-//builder.AddAzureOpenAIClient("OpenAI");
 builder.Services.AddScoped<IProductSearchService, ProductSearchService>();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();

@@ -697,10 +697,6 @@ resource backendContainerApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: '["id", "name", "description", "price", "category"]'
             }
             {
-              name: 'AppConfiguration__OpenAIClient__endpoint'
-              value: openAi.properties.endpoint
-            }
-            {
               name: 'AppConfiguration__AISearchClient__semanticConfigName'
               value: semanticConfigName
             }
@@ -713,16 +709,20 @@ resource backendContainerApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: '3'
             }
             {
-              name: 'AppConfiguration__OpenAIClient__embeddingClientName'
+              name: 'AppConfiguration__OpenAIClient__embeddingClient'
               value: embeddingClientName
             }
             {
-              name: 'AppConfiguration__OpenAIClient__chatGptDeploymentName'
+              name: 'AppConfiguration__OpenAIClient__deployment'
               value: chatGptDeploymentName
             }
             {
-              name: 'AppConfiguration__OpenAIClient__systemPromptFileName'
+              name: 'AppConfiguration__OpenAIClient__systemPromptFile'
               value: systemPromptFileName
+            }
+            {
+              name: 'AppConfiguration__OpenAIClient__endpoint'
+              value: openAi.properties.endpoint
             }
             {
               name: 'AppConfiguration__OpenAIClient__storageAccountUrl'
